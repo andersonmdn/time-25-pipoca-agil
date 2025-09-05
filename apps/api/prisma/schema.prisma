@@ -11,12 +11,14 @@ datasource db {
 // Enums
 //////////////////////////////////////////////////////
 
+// Funções
 enum UserRole {
   user
   partner
   admin
 }
 
+// Tipos de Plug
 enum PlugType {
   CCS2
   Type2
@@ -25,6 +27,7 @@ enum PlugType {
   Tesla
 }
 
+// Status dos Conectores
 enum ConnectorStatus {
   available
   occupied
@@ -32,6 +35,7 @@ enum ConnectorStatus {
   maintenance
 }
 
+// Reservas
 enum BookingStatus {
   pending
   confirmed
@@ -41,6 +45,7 @@ enum BookingStatus {
   no_show
 }
 
+// Sessões de Carga
 enum ChargeSessionStatus {
   started
   finished
@@ -48,6 +53,7 @@ enum ChargeSessionStatus {
   failed
 }
 
+// Notificações
 enum NotificationType {
   booking_created
   booking_reminder
@@ -57,6 +63,7 @@ enum NotificationType {
   general
 }
 
+// Problemas
 enum IssueType {
   station_offline
   connector_broken
@@ -65,6 +72,7 @@ enum IssueType {
   other
 }
 
+// Status dos Problemas
 enum IssueStatus {
   open
   in_progress
@@ -72,6 +80,7 @@ enum IssueStatus {
   dismissed
 }
 
+// Tipos de Parceiros
 enum PartnerType {
   charging_operator
   retail
@@ -80,6 +89,7 @@ enum PartnerType {
   other
 }
 
+// Tipos de Eventos de Fidelidade
 enum LoyaltyEventType {
   session_completed
   booking_completed
@@ -88,6 +98,7 @@ enum LoyaltyEventType {
   manual_adjust
 }
 
+// Tipos de Recompensas
 enum RewardType {
   discount
   cashback
@@ -95,6 +106,7 @@ enum RewardType {
   perk
 }
 
+// Comodidades
 enum AmenityType {
   restroom // Banheiro
   wifi // Wi-Fi
@@ -109,12 +121,14 @@ enum AmenityType {
 // Users & Vehicles
 //////////////////////////////////////////////////////
 
+// Usuários
 model User {
   id            Int              @id @default(autoincrement())
   email         String           @unique
   name          String?
   role          UserRole         @default(user)
   phone         String?
+  password      String
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -129,6 +143,7 @@ model User {
   stationReviews StationReview[] // Reviews de Estações
 }
 
+// Veículos
 model Vehicle {
   id        Int   @id @default(autoincrement())
   userId    Int
@@ -148,6 +163,7 @@ model Vehicle {
 // Stations (Estações), Connectors (Conectores), Pricing (Preços), Amenities (Comodidades)
 //////////////////////////////////////////////////////
 
+// Estações
 model Station {
   id             Int           @id @default(autoincrement())
   ownerId        Int?          // Partner.id (dono/operador)
@@ -244,6 +260,7 @@ model StationAmenity {
 // Discovery: Favorites & Reviews
 //////////////////////////////////////////////////////
 
+// Estações Favoritas
 model FavoriteStation {
   id        Int   @id @default(autoincrement())
   userId    Int
@@ -258,6 +275,7 @@ model FavoriteStation {
   @@index([stationId])
 }
 
+// Avaliações das Estações
 model StationReview {
   id         Int   @id @default(autoincrement())
   userId     Int
@@ -280,6 +298,7 @@ model StationReview {
 // Notifications (Notificações)
 //////////////////////////////////////////////////////
 
+// Notificações
 model Notification {
   id        Int           @id @default(autoincrement())
   userId    Int
@@ -299,6 +318,7 @@ model Notification {
 // Issues / Reports (user & owner) (Problemas / Relatórios (usuário e proprietário))
 //////////////////////////////////////////////////////
 
+// Relatórios de Problemas
 model IssueReport {
   id          Int         @id @default(autoincrement())
   reporterId  Int
@@ -327,6 +347,7 @@ model IssueReport {
 // Partners (owners/operators of stations) (Parceiros - Proprietários/Operadores de Estações)
 //////////////////////////////////////////////////////
 
+// Parceiros
 model Partner {
   id           Int      @id @default(autoincrement())
   userId       Int?     // login opcional (User)
@@ -348,6 +369,7 @@ model Partner {
 // (POIs removidos; use lat/lng ou stationId)
 //////////////////////////////////////////////////////
 
+// Roteiros
 model RoutePlan {
   id        Int   @id @default(autoincrement())
   userId    Int
@@ -364,6 +386,7 @@ model RoutePlan {
   waypoints RouteWaypoint[]
 }
 
+// Pontos de Interesse (POIs)
 model RouteWaypoint {
   id        Int   @id @default(autoincrement())
   routeId   Int
