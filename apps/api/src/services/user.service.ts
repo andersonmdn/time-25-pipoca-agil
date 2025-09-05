@@ -25,6 +25,17 @@ export async function verifyPassword(hash: string, plain: string) {
 
 export async function getUsers() {
   return prisma.user.findMany({
-    select: { id: true, email: true, name: true, phone: true, createdAt: true },
+    select: { id: true, email: true, name: true, phone: true, createdAt: true, updatedAt: true },
+  })
+}
+
+export async function updateUser(id: number, data: { email?: string; password?: string; name?: string | null; phone?: string | null }) {
+  const updateData: any = { ...data }
+  if (data.password) {
+    updateData.password = await argon2.hash(data.password)
+  }
+  return prisma.user.update({
+    where: { id },
+    data: updateData,
   })
 }

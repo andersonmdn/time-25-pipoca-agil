@@ -1,9 +1,9 @@
-import { userCreateSchema } from '@chargemap/validations'
+import { userCreateSchema, userIdParamSchema, userResponseSchema, userUpdateSchema } from '@chargemap/validations'
 import { Router } from 'express'
 import z from 'zod'
 import { signAccessToken, signRefreshToken } from '../auth/jwt'
 import { requireAuth } from '../auth/middleware'
-import { createUser, findUserByEmail, getUsers } from '../services/user.service'
+import { createUser, findUserByEmail, getUsers, updateUser } from '../services/user.service'
 
 const router = Router()
 
@@ -151,7 +151,122 @@ router.post('/register', async (req, res) => {
  */
 router.get('/users', requireAuth, async (req, res) => {
   const users = await getUsers()
-  return res.status(200).json({ users })
+
+  const usersResponse = users.map((user) => userResponseSchema.parse(user))
+  if (!usersResponse) return res.status(404).json({ error: 'Usuários não encontrados' })
+
+  return res.status(200).json({ users: usersResponse })
+})
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     tags:
+ *       - Users
+ *     summary: Atualizar usuário
+ *     description: Atualiza os dados de um usuário existente. Requer autenticação com Bearer token JWT.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do usuário a ser atualizado
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "usuario.atualizado@example.com"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "NovaSenha123!"
+ *               name:
+ *                 type: string
+ *                 example: "Nome Atualizado"
+ *               phone:
+ *                 type: string
+ *                 example: "+55 11999999999"
+ *     responses:
+ *       200:
+ *         description: Usuário atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "123"
+ *                     email:
+ *                       type: string
+ *                       example: "usuario.atualizado@example.com"
+ *                     name:
+ *                       type: string
+ *                       example: "Nome Atualizado"
+ *                     phone:
+ *                       type: string
+ *                       example: "+55 11999999999"
+ *       400:
+ *         description: Erro de validação nos dados enviados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "O campo email é obrigatório"
+ *       401:
+ *         description: Token ausente, inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Token inválido ou expirado"
+ *       404:
+ *         description: Usuário não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Usuário não encontrado"
+ */
+router.put('/users/:id', requireAuth, async (req, res) => {
+  const params = userIdParamSchema.safeParse(req.params)
+  if (!params.success) return res.status(400).json({ error: z.treeifyError(params.error) })
+
+  const { id } = params.data
+
+  const body = userUpdateSchema.safeParse(req.body)
+  if (!body.success) return res.status(400).json({ error: z.treeifyError(body.error) })
+  const { email, password, name, phone } = body.data
+
+  const user = await updateUser(id, { email, password, name, phone })
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
+
+  const userResponse = userResponseSchema.parse(user)
+  if (!userResponse) return res.status(404).json({ error: 'Usuário não encontrado' })
+
+  return res.status(200).json({ user: userResponse })
 })
 
 export default router
