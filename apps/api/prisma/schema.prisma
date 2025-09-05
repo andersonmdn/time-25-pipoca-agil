@@ -1,0 +1,400 @@
+/// Prisma + PostgreSQL
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//////////////////////////////////////////////////////
+// Enums
+//////////////////////////////////////////////////////
+
+// Funções
+enum UserRole {
+  user
+  partner
+  admin
+}
+
+// Tipos de Plug
+enum PlugType {
+  CCS2
+  Type2
+  CHAdeMO
+  GB_T
+  Tesla
+}
+
+// Status dos Conectores
+enum ConnectorStatus {
+  available
+  occupied
+  offline
+  maintenance
+}
+
+// Reservas
+enum BookingStatus {
+  pending
+  confirmed
+  canceled
+  expired
+  completed
+  no_show
+}
+
+// Sessões de Carga
+enum ChargeSessionStatus {
+  started
+  finished
+  canceled
+  failed
+}
+
+// Notificações
+enum NotificationType {
+  booking_created
+  booking_reminder
+  booking_canceled
+  station_issue_update
+  loyalty_reward
+  general
+}
+
+// Problemas
+enum IssueType {
+  station_offline
+  connector_broken
+  price_mismatch
+  blocked_access
+  other
+}
+
+// Status dos Problemas
+enum IssueStatus {
+  open
+  in_progress
+  resolved
+  dismissed
+}
+
+// Tipos de Parceiros
+enum PartnerType {
+  charging_operator
+  retail
+  hospitality
+  automotive
+  other
+}
+
+// Tipos de Eventos de Fidelidade
+enum LoyaltyEventType {
+  session_completed
+  booking_completed
+  referral
+  milestone
+  manual_adjust
+}
+
+// Tipos de Recompensas
+enum RewardType {
+  discount
+  cashback
+  free_minutes
+  perk
+}
+
+// Comodidades
+enum AmenityType {
+  restroom // Banheiro
+  wifi // Wi-Fi
+  parking // Estacionamento
+  food_drink // Comida e Bebida
+  shopping // Compras
+  lounge // Sala de Espera
+  pet_friendly // Aceita Animais
+}
+
+//////////////////////////////////////////////////////
+// Users & Vehicles
+//////////////////////////////////////////////////////
+
+// Usuários
+model User {
+  id            Int              @id @default(autoincrement())
+  email         String           @unique
+  name          String?
+  role          UserRole         @default(user)
+  phone         String?
+  password      String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  vehicles      Vehicle[] // Veículos do Usuário
+  favorites     FavoriteStation[] // Estações Favoritas
+  //bookings      Booking[] // Reservas
+  //sessions      ChargeSession[] // Sessões de Carga
+  notifications Notification[] // Notificações
+  issueReports  IssueReport[] // Relatórios de Problemas
+  //loyaltyAccount LoyaltyAccount? // Conta de Fidelidade (opcional)
+  routePlans    RoutePlan[] // Planos de Rota
+  stationReviews StationReview[] // Reviews de Estações
+}
+
+// Veículos
+model Vehicle {
+  id        Int   @id @default(autoincrement())
+  userId    Int
+  alias     String?
+  brand     String?
+  model     String?
+  plug      PlugType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////////
+// Stations (Estações), Connectors (Conectores), Pricing (Preços), Amenities (Comodidades)
+//////////////////////////////////////////////////////
+
+// Estações
+model Station {
+  id             Int           @id @default(autoincrement())
+  ownerId        Int?          // Partner.id (dono/operador)
+  name           String
+  description    String?
+  latitude       Float
+  longitude      Float
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  state          String?
+  country        String?
+  postalCode     String?
+  openingHours   Json?            // estrutura livre
+  phone          String?
+  website        String?
+  photos         String[]         // URLs das fotos
+  ratingAvg      Float            @default(0)
+  ratingCount    Int              @default(0)
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?       // Data de exclusão (opcional)
+
+  owner        Partner?           @relation(fields: [ownerId], references: [id], onDelete: SetNull) // Dono/Operador da Estação
+  connectors   Connector[]        // Conectores da Estação
+  prices       StationPriceTier[] // Preços da Estação
+  amenities    StationAmenity[] // Comodidades da Estação
+  reviews      StationReview[] // Reviews
+  favorites    FavoriteStation[] // Estações Favoritas
+  //bookings     Booking[] // Reservas
+  //sessions     ChargeSession[] // Sessões de Carga
+  issues       IssueReport[] // Relatórios de Problemas
+  routeWaypoints RouteWaypoint[]
+}
+
+// Conectores da Estação
+model Connector {
+  id          Int           @id @default(autoincrement())
+  stationId   Int
+  plug        PlugType
+  powerKW     Float?
+  status      ConnectorStatus  @default(available)
+  priceTierId Int?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  station  Station          @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  priceTier StationPriceTier? @relation(fields: [priceTierId], references: [id], onDelete: SetNull)
+  issues    IssueReport[]
+
+  @@index([stationId])
+  @@index([priceTierId])
+}
+
+// Tarifas (por estação ou conector)
+model StationPriceTier {
+  id             Int   @id @default(autoincrement())
+  stationId      Int
+  name           String?
+  pricePerKWh    Decimal? @db.Decimal(10,2)
+  pricePerMinute Decimal? @db.Decimal(10,2)
+  sessionFee     Decimal? @db.Decimal(10,2)
+  currency       String   @default("BRL")
+  // janela de tarifa (opcional)
+  dayOfWeek      Int?     // 0-6 (Sun-Sat)
+  startHour      Int?     // 0-23
+  endHour        Int?     // 0-23
+  isDynamic      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  connectors Connector[]   // opposite relation to Connector.priceTier
+
+  @@index([stationId])
+  @@index([dayOfWeek, startHour, endHour])
+}
+
+// Comodidades da Estação
+model StationAmenity {
+  id         Int  @id @default(autoincrement())
+  stationId  Int
+  key        AmenityType
+  value      Boolean @default(true) // disponível ou não
+
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@unique([stationId, key])
+}
+
+//////////////////////////////////////////////////////
+// Discovery: Favorites & Reviews
+//////////////////////////////////////////////////////
+
+// Estações Favoritas
+model FavoriteStation {
+  id        Int   @id @default(autoincrement())
+  userId    Int
+  stationId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stationId])
+  @@index([userId])
+  @@index([stationId])
+}
+
+// Avaliações das Estações
+model StationReview {
+  id         Int   @id @default(autoincrement())
+  userId     Int
+  stationId  Int
+  rating     Int      // 1..5
+  title      String?
+  comment    String?
+  photos     String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////////
+// Notifications (Notificações)
+//////////////////////////////////////////////////////
+
+// Notificações
+model Notification {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  type      NotificationType @default(general)
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+//////////////////////////////////////////////////////
+// Issues / Reports (user & owner) (Problemas / Relatórios (usuário e proprietário))
+//////////////////////////////////////////////////////
+
+// Relatórios de Problemas
+model IssueReport {
+  id          Int         @id @default(autoincrement())
+  reporterId  Int
+  ownerId     Int?        // Partner (responsável)
+  stationId   Int
+  connectorId Int?
+  type        IssueType   @default(other)
+  status      IssueStatus @default(open)
+  title       String
+  description String?
+  photos      String[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  reporter  User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  owner     Partner? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  connector Connector? @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([reporterId])
+  @@index([ownerId])
+}
+
+//////////////////////////////////////////////////////
+// Partners (owners/operators of stations) (Parceiros - Proprietários/Operadores de Estações)
+//////////////////////////////////////////////////////
+
+// Parceiros
+model Partner {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     // login opcional (User)
+  name         String
+  type         PartnerType @default(charging_operator)
+  contactEmail String?
+  contactPhone String?
+  website      String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+
+  stations     Station[]
+  issues       IssueReport[]
+}
+
+//////////////////////////////////////////////////////
+// Route Planning (multi-stops)
+// (POIs removidos; use lat/lng ou stationId)
+//////////////////////////////////////////////////////
+
+// Roteiros
+model RoutePlan {
+  id        Int   @id @default(autoincrement())
+  userId    Int
+  name      String?
+  originLat Float
+  originLng Float
+  destLat   Float
+  destLng   Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  metadata  Json?
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waypoints RouteWaypoint[]
+}
+
+// Pontos de Interesse (POIs)
+model RouteWaypoint {
+  id        Int   @id @default(autoincrement())
+  routeId   Int
+  seq       Int
+  stationId Int
+
+  route   RoutePlan @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  station Station   @relation(fields: [stationId], references: [id])
+
+  @@index([routeId, seq])
+}
