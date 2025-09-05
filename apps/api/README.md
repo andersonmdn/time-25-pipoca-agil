@@ -25,19 +25,6 @@ Este documento resume o **modelo de dados** do projeto. O ORM utilizado é **Pri
 
 ---
 
-## Relacionamentos (cardinalidade e deleção)
-
-- `User 1—* Vehicle` (cascade)
-- `User 1—* FavoriteStation` e `Station 1—* FavoriteStation` (unique por `[userId, stationId]`; cascade)
-- `User 1—* StationReview` e `Station 1—* StationReview` (cascade)
-- `User 1—* Notification` (index em `(userId, createdAt)`)
-- `Station 1—* Connector` (cascade)
-- `Station 1—* StationPriceTier` (cascade) e `StationPriceTier 1—* Connector` (via `priceTierId`, **SetNull** ao remover tier)
-- `Station 1—* StationAmenity` (unique por `[stationId, key]`; cascade)
-- `Partner 1—* Station` (em `Station.ownerId`, **SetNull** ao remover parceiro)
-- `IssueReport` → `reporter: User` (cascade), `owner: Partner?` (cascade), `station: Station` (cascade), `connector: Connector?` (cascade)
-- `User 1—* RoutePlan` (cascade), `RoutePlan 1—* RouteWaypoint` (cascade), `RouteWaypoint` → `Station`
-
 **Soft delete:**
 
 - `Station.deletedAt` e `Partner.deletedAt` permitem “desativar” sem apagar dados. Regra de negócio deve filtrar `deletedAt IS NULL` + `isActive`.
@@ -87,35 +74,6 @@ Conectores podem apontar para um `priceTier` específico (ou herdar lógica da e
 
 ---
 
-## Diagrama (Mermaid)
-
-```mermaid
-erDiagram
-  User ||--o{ Vehicle : has
-  User ||--o{ FavoriteStation : favorites
-  Station ||--o{ FavoriteStation : is_favorited
-  User ||--o{ StationReview : writes
-  Station ||--o{ StationReview : receives
-  User ||--o{ Notification : receives
-
-  Partner ||--o{ Station : owns
-  Station ||--o{ Connector : has
-  Station ||--o{ StationPriceTier : defines
-  StationPriceTier ||--o{ Connector : applies_to
-  Station ||--o{ StationAmenity : provides
-
-  User ||--o{ IssueReport : reports
-  Partner ||--o{ IssueReport : handles
-  Station ||--o{ IssueReport : about
-  Connector ||--o{ IssueReport : maybe_about
-
-  User ||--o{ RoutePlan : plans
-  RoutePlan ||--o{ RouteWaypoint : has
-  Station ||--o{ RouteWaypoint : target
-```
-
----
-
 ## Regras de Negócio (resumo)
 
 - **Ativação de estação:** `Station.isActive` + `deletedAt` controlam visibilidade.
@@ -129,19 +87,42 @@ erDiagram
 
 ```bash
 # gerar client após alterar schema
-pnpm prisma generate
+pnpm --filter @chargemap/api prisma:generate
 
 # criar e aplicar migrações em dev
-pnpm prisma migrate dev --name init
+pnpm --filter @chargemap/api prisma:migrate:dev
 
 # abrir Prisma Studio
-pnpm prisma studio
+pnpm --filter @chargemap/api prisma:studio
 ```
 
-**Sempre que alterar o schema do Prisma, lembre-se de atualizar o ER Diagram:**  
-https://prisma-erd.simonknott.de/
-
 **Variáveis:** configure `DATABASE_URL` no `.env`.
+
+<!-- **Sempre que alterar o schema do Prisma, lembre-se de atualizar o ER Diagram:**
+
+https://prisma-erd.simonknott.de/ -->
+
+---
+
+## Estrutura Monorepo
+
+Este projeto faz parte de um **monorepo** gerenciado com [pnpm workspaces](https://pnpm.io/workspaces). O pacote da API está localizado em `apps/api` e pode ser referenciado nos comandos usando o filtro `--filter @chargemap/api`.
+
+### Comandos do pacote API
+
+| Comando                                              | Descrição                                                                                         |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @chargemap/api dev`                   | Inicia o servidor de desenvolvimento com hot reload e variáveis de ambiente.                      |
+| `pnpm --filter @chargemap/api build`                 | Compila o TypeScript e gera o client Prisma.                                                      |
+| `pnpm --filter @chargemap/api typecheck`             | Executa apenas a checagem de tipos TypeScript, sem gerar arquivos.                                |
+| `pnpm --filter @chargemap/api clean`                 | Remove a pasta de build (`dist`) e dependências (`node_modules`).                                 |
+| `pnpm --filter @chargemap/api prisma:generate`       | Gera o client Prisma a partir do schema atual.                                                    |
+| `pnpm --filter @chargemap/api prisma:migrate:dev`    | Cria e aplica migrações no banco em ambiente de desenvolvimento.                                  |
+| `pnpm --filter @chargemap/api prisma:migrate:deploy` | Aplica migrações em ambiente de produção/deploy.                                                  |
+| `pnpm --filter @chargemap/api prisma:migrate:reset`  | Reseta o banco e reaplica todas as migrações.                                                     |
+| `pnpm --filter @chargemap/api prisma:studio`         | Abre o Prisma Studio para visualização/edição dos dados.                                          |
+| `pnpm --filter @chargemap/api prestart`              | Compila as validações do pacote `@chargemap/validations` e gera o client Prisma antes de iniciar. |
+| `pnpm --filter @chargemap/api postinstall`           | Compila as validações e gera o client Prisma após instalar dependências.                          |
 
 ---
 
