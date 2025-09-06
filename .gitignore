@@ -1,44 +1,93 @@
-# Node modules
+# =========================
+# Node Modules
+# =========================
 node_modules/
-# Expo
+
+# =========================
+# Expo / React Native
+# =========================
 .expo/
 .expo-shared/
-# Build output
+android/
+ios/
+web-build/
+
+# =========================
+# Build / Output
+# =========================
 dist/
 build/
+.rimraf/
+
+# =========================
 # TypeScript
+# =========================
 *.tsbuildinfo
+
+# =========================
 # Logs
+# =========================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-# OS files
+*.log
+
+# =========================
+# OS Files
+# =========================
 .DS_Store
 Thumbs.db
-# Environment files
+*.swp
+
+# =========================
+# Environment Files
+# =========================
 .env
 .env.local
 .env.*.local
-# IDE files
+!.env.example   # Mantém o exemplo versionado
+
+# =========================
+# IDE Files
+# =========================
 .vscode/
 .idea/
-# EAS build
+
+# =========================
+# EAS Build (Expo Application Services)
+# =========================
 .easl/
-# Coverage
+
+# =========================
+# Coverage / Test Reports
+# =========================
 coverage/
-# Misc
-*.log
-*.lock
-# Mac system files
-*.swp
-# React Native
-android/
-ios/
-# Expo web build
-web-build/
-# Rimraf clean
-.rimraf/
-# Others
+
+# =========================
+# Prisma
+# =========================
+# Arquivo de lock do Prisma (não deve ser versionado)
+apps/api/prisma/migrations/migration_lock.toml
+
+# Migrations devem ser versionadas!
+# apps/api/prisma/migrations/ -> MANTER no repositório
+# migration.sql também deve ser versionado
+# então não adicionamos nada aqui além do lock.
+
+# =========================
+# Miscellaneous
+# =========================
 *.bak
 *.tmp
+
+# =========================
+# Lockfiles (Manter apenas o do gerenciador utilizado)
+# =========================
+# Caso queira usar só pnpm, remova os outros
+# Se for usar pnpm, mantenha ESTE versionado!
+# pnpm-lock.yaml
+
+# Se quiser garantir que yarn/npm não entrem:
+# package-lock.json
+# yarn.lock
