@@ -18,11 +18,9 @@ export type UserCreate = z.infer<typeof userCreateSchema>
 export const userUpdateSchema = userSchema.partial().superRefine(requireAtLeastOneField())
 export type UserUpdate = z.infer<typeof userUpdateSchema>
 
-export const userResponseSchema = userSchema
-  .extend({
-    id: idInt,
-    createdAt: z.date(),
-    updatedAt: z.date(),
-  })
-  .omit({ password: true })
+export const userResponseSchema = userSchema.extend({
+  id: idInt,
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
 export type UserResponse = z.infer<typeof userResponseSchema>

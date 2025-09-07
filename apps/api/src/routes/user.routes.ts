@@ -129,15 +129,32 @@ router.post('/register', async (req, res) => {
  *                   items:
  *                     type: object
  *                     properties:
- *                       id:
- *                         type: string
- *                         example: "123"
  *                       email:
  *                         type: string
  *                         example: "user@example.com"
  *                       name:
  *                         type: string
  *                         example: "João da Silva"
+ *                       role:
+ *                         type: string
+ *                         example: "user"
+ *                       phone:
+ *                         type: string
+ *                         example: "+55 11999999999"
+ *                       password:
+ *                         type: string
+ *                         example: "$argon2id$v=19$m=65536,t=3,p=4$..."
+ *                       id:
+ *                         type: string
+ *                         example: "123"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2023-01-01T00:00:00Z"
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2023-01-01T00:00:00Z"
  *       401:
  *         description: Token ausente, inválido ou expirado
  *         content:

@@ -5,8 +5,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "dev2": "tsx -r dotenv/config src/server.ts",
+    "dev": "tsx -r dotenv/config src/server.ts",
     "build": "tsc -p tsconfig.json && prisma generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist node_modules",

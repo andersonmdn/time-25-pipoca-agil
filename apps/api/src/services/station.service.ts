@@ -1,15 +1,10 @@
 import { PrismaClient } from '@prisma/client'
-import { stationResponseSchema } from 'packages/validations/dist'
-import { z } from 'zod'
+import { StationResponse, stationResponseSchema } from 'packages/validations/dist'
 
 const prisma = new PrismaClient()
 
-export async function listNearbyStations(
-  lat: number,
-  lng: number,
-  radius: number,
-): Promise<z.infer<typeof stationResponseSchema>[]> {
-  const dDeg = radius / 111320 // ~ meters per degree
+export async function listNearbyStations(lat: number, lng: number, radius: number): Promise<StationResponse[]> {
+  const dDeg = radius / 111320 // ~ Metros por grau
   const stations = await prisma.station.findMany({
     where: {
       latitude: { gte: lat - dDeg, lte: lat + dDeg },
@@ -21,10 +16,8 @@ export async function listNearbyStations(
   return stationResponseSchema.array().parse(stations)
 }
 
-export async function getStationById(
-  id: string,
-): Promise<z.infer<typeof stationResponseSchema> | null> {
+export async function getStationById(id: number): Promise<StationResponse> {
   const station = await prisma.station.findUnique({ where: { id } })
-  if (!station) return null
+
   return stationResponseSchema.parse(station)
 }

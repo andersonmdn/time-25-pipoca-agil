@@ -1,7 +1,8 @@
 import { authSchema } from '@chargemap/validations'
 import { Router } from 'express'
 import z from 'zod'
-import { signAccessToken, signRefreshToken } from '../auth/jwt'
+import { signAccessToken, signRefreshToken, verifyRefresh } from '../auth/jwt'
+import { logger } from '../logger'
 import { findUserByEmail, verifyPassword } from '../services/user.service'
 
 const router = Router()
@@ -134,11 +135,11 @@ router.post('/refresh', async (req, res) => {
   const token = (req.body?.refreshToken ?? req.headers['x-refresh-token']) as string | undefined
   if (!token) return res.status(400).json({ error: 'Token de atualização ausente' })
   try {
-    const { verifyRefresh } = await import('../auth/jwt')
     const payload = verifyRefresh(token)
-    const accessToken = (await import('../auth/jwt')).signAccessToken(payload)
+    const accessToken = signAccessToken(payload)
     res.json({ accessToken })
-  } catch {
+  } catch (e) {
+    logger.error({ e }, 'Erro ao renovar token:')
     res.status(401).json({ error: 'Refresh token inválido ou expirado' })
   }
 })
