@@ -8,4 +8,5 @@ type CustomTheme = {
   info: { val: string }
   danger: { val: string }
   border: { val: string }
+  backgroundTransparent: { val: string }
 }

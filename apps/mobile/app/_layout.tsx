@@ -8,6 +8,7 @@ import config from '../tamagui.config'
 import PlusJakartaSans from '../assets/fonts/PlusJakartaSans-VariableFont_wght.ttf'
 
 // Adicionar imports para área segura
+import { View } from 'react-native' // Importar View
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 
 export default function RootLayout() {
@@ -23,11 +24,14 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top', 'bottom']}>
-        <TamaguiProvider config={config}>
-          <Theme name={theme}>
-            {/* <Stack
+    <View style={{ flex: 1, backgroundColor: '#282736' }}>
+      {' '}
+      {/* Background ao redor de todo o app */}
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#282736' }} edges={['top', 'bottom']}>
+          <TamaguiProvider config={config}>
+            <Theme name={theme}>
+              {/* <Stack
               screenOptions={{
                 headerShown: false,
                 animation: Platform.select({ ios: 'default', android: 'fade' }),
@@ -36,11 +40,12 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="+not-found" />
             </Stack> */}
-            <Stack screenOptions={{ headerShown: false }}></Stack>
-            <StatusBar style="dark" />
-          </Theme>
-        </TamaguiProvider>
-      </SafeAreaView>
-    </SafeAreaProvider>
+              <Stack screenOptions={{ headerShown: false }}></Stack>
+              <StatusBar style="dark" />
+            </Theme>
+          </TamaguiProvider>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </View>
   )
 }

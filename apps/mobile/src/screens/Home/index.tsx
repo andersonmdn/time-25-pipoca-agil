@@ -1,58 +1,26 @@
 // apps\mobile\src\screens\Home\index.tsx
+import { Chip } from '@/src/components/Chip'
 import { Battery, MapPin } from '@tamagui/lucide-icons'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import { Button, Card, H2, Input, Paragraph, Separator, Theme, XStack, YStack } from 'tamagui'
-
-function Chip({ label, initial = false, onPress }: { label: string; initial?: boolean; onPress?: (active: boolean) => void }) {
-  const [active, setActive] = useState(initial)
-  return (
-    <Button
-      size="$2"
-      chromeless
-      bordered
-      bw={1}
-      br="$10"
-      unstyled={false}
-      px="$3"
-      py="$1.5"
-      ml="$2"
-      mt="$2"
-      theme={active ? 'active' : undefined}
-      onPress={() => {
-        const next = !active
-        setActive(next)
-        onPress?.(next)
-      }}
-    >
-      {label}
-    </Button>
-  )
-}
+import { Button, Card, H2, Input, Paragraph, Separator, Theme, useTheme, XStack, YStack } from 'tamagui'
 
 export default function HomeScreen() {
   const router = useRouter()
+  const theme = useTheme()
   const [query, setQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
 
   return (
     <YStack f={1} bg="$background">
-      {/* Header com logo */}
       <YStack h={160} ai="center" jc="center" bg="$primary" px="$4">
-        {/* <Image
-          // tamagui Image aceita o mesmo "source" do RN
-          source={imgReactLogo}
-          width={192}
-          height={96}
-          opacity={0.8}
-          resizeMode="contain"
-        /> */}
         <H2 mt="$2" color="white" ff="$heading">
-          <Battery size={24} /> Encontre carga para seu EV
+          <Battery size={24} /> Encontre pontos de Recarga
         </H2>
       </YStack>
 
       {/* Conteúdo */}
-      <YStack f={1} px="$4" py="$5" gap="$4">
+      <YStack f={1} px="$4" py="$5" gap="$4" maxWidth={600} w="100%" mx="auto">
         {/* Busca */}
         <Card bordered br="$6" p="$4" bg="$colorTransparent">
           <YStack gap="$2">
@@ -62,7 +30,7 @@ export default function HomeScreen() {
             <XStack gap="$3" ai="center">
               <Input flex={1} size="$4" placeholder="Ex.: Av. Paulista, 1000" value={query} onChangeText={setQuery} />
               <Button icon={MapPin} size="$4" aria-label="Usar localização atual">
-                Perto
+                Localização
               </Button>
             </XStack>
           </YStack>
@@ -71,7 +39,18 @@ export default function HomeScreen() {
         {/* Filtros rápidos */}
         <XStack fw="wrap">
           {['CCS', 'Type 2', 'CHAdeMO', 'Rápido', '24h'].map((tag) => (
-            <Chip key={tag} label={tag} />
+            <Chip
+              key={tag}
+              label={tag}
+              active={selectedTags.includes(tag)}
+              onChange={(active) => {
+                if (active) {
+                  setSelectedTags((prev) => [...prev, tag])
+                } else {
+                  setSelectedTags((prev) => prev.filter((t) => t !== tag))
+                }
+              }}
+            />
           ))}
         </XStack>
 
