@@ -17,5 +17,11 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "pnpm": {
+    "overrides": {
+      "react": "19.0.0",
+      "react-native": "0.79.5"
+    }
+  }
 }
