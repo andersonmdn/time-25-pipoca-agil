@@ -1,43 +1,22 @@
 // app/(public)/sign-in.tsx
+import { useSignIn } from '@/src/hooks/useSignIn'
 import { Battery, Check, LogIn } from '@tamagui/lucide-icons'
-import { useRouter } from 'expo-router'
-import { useState } from 'react'
 import { ActivityIndicator, Image } from 'react-native'
 import { Button, Card, Checkbox, H2, Input, Label, Paragraph, Separator, XStack, YStack } from 'tamagui'
 
 export default function SignIn() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
+  const { email, setEmail, password, setPassword, loading, error, emailValid, signIn, router, rememberMe, setRememberMe } = useSignIn()
 
   const handleSignIn = async () => {
-    setLoading(true)
-    try {
-      // Simulação de autenticação
-      setTimeout(() => {
-        setLoading(false)
-        router.replace('/home')
-      }, 1000)
-    } catch (e) {
-      setLoading(false)
-      console.warn('Falha no login', e)
-    }
+    await signIn()
+    // Navegação após login bem-sucedido
+    // if (!error) {
+    //   router.replace('/home')
+    // }
   }
 
   const handleGoogleSignIn = async () => {
-    setLoading(true)
-    try {
-      // Simulação de login Google
-      setTimeout(() => {
-        setLoading(false)
-        router.replace('/home')
-      }, 1000)
-    } catch (e) {
-      setLoading(false)
-      console.warn('Falha no login Google', e)
-    }
+    // Implementar lógica de login com Google aqui
   }
 
   return (
@@ -54,16 +33,38 @@ export default function SignIn() {
             <Paragraph size="$2" color="$color" mb={-8}>
               E-mail
             </Paragraph>
-            <Input flex={1} size="$4" placeholder="E-mail" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
+            <Input
+              flex={1}
+              size="$4"
+              placeholder="E-mail"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+              testID="input-email"
+            />
             <Paragraph size="$2" color="$color" mb={-8}>
               Senha
             </Paragraph>
-            <Input flex={1} size="$4" placeholder="Senha" secureTextEntry value={password} onChangeText={setPassword} />
+            <Input flex={1} size="$4" placeholder="Senha" secureTextEntry value={password} onChangeText={setPassword} testID="input-password" />
+
+            {/* Exibe mensagem de erro, se houver */}
+            {error ? (
+              <Paragraph size="$2" color="red" mb={-8} testID="error-message">
+                {error}
+              </Paragraph>
+            ) : null}
 
             {/* Lembrar de mim e Esqueceu senha */}
             <XStack ai="center" jc="space-between" mt="$2">
               <XStack ai="center" gap="$2">
-                <Checkbox checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked === true)} size="$2" id="rememberMe">
+                <Checkbox
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  size="$2"
+                  id="rememberMe"
+                  testID="checkbox-remember-me"
+                >
                   <Checkbox.Indicator>
                     <Check size={14} />
                   </Checkbox.Indicator>
@@ -72,12 +73,28 @@ export default function SignIn() {
                   Lembrar de mim
                 </Label>
               </XStack>
-              <Button variant="outlined" size="$2" chromeless onPress={() => router.push('/forgot-password')} color="$primary" px={0}>
+              <Button
+                variant="outlined"
+                size="$2"
+                chromeless
+                onPress={() => router.push('/forgot-password')}
+                color="$primary"
+                px={0}
+                testID="button-forgot-password"
+              >
                 Esqueceu sua senha?
               </Button>
             </XStack>
 
-            <Button icon={LogIn} size="$4" onPress={handleSignIn} disabled={loading || !email || !password} bg="$primary" mt="$2">
+            <Button
+              icon={LogIn}
+              size="$4"
+              onPress={handleSignIn}
+              disabled={loading || !email || !password}
+              bg={loading || !email || !password ? '$backgroundDisabled' : '$primary'}
+              mt="$2"
+              testID="button-sign-in"
+            >
               {loading ? <ActivityIndicator color="#fff" /> : 'Entrar'}
             </Button>
 
@@ -85,7 +102,7 @@ export default function SignIn() {
               <Paragraph size="$2" color="$color">
                 Não tem conta?
               </Paragraph>
-              <Button variant="outlined" size="$2" chromeless onPress={() => router.push('/sign-up')} color="$primary" px={0}>
+              <Button variant="outlined" size="$2" chromeless onPress={() => router.push('/sign-up')} color="$primary" px={0} testID="button-sign-up">
                 Criar conta
               </Button>
             </XStack>
@@ -100,6 +117,7 @@ export default function SignIn() {
               borderWidth={1}
               onPress={handleGoogleSignIn}
               disabled={loading}
+              testID="button-google-sign-in"
             >
               <Image source={require('../../assets/google.png')} style={{ width: 20, height: 20, marginRight: 8 }} resizeMode="contain" />
               Entrar com Google
