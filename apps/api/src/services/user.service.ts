@@ -4,9 +4,9 @@ import { UserResponse, userResponseSchema } from 'packages/validations/dist'
 
 const prisma = new PrismaClient()
 
-export async function findUserByEmail(email: string): Promise<UserResponse> {
+export async function findUserByEmail(email: string): Promise<UserResponse | null> {
   const user = await prisma.user.findUnique({ where: { email } })
-  return userResponseSchema.parse(user)
+  return userResponseSchema.nullable().parse(user)
 }
 
 export async function createUser(data: { email: string; password: string; name?: string | null; phone?: string | null }): Promise<UserResponse> {

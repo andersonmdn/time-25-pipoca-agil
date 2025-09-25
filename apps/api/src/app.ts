@@ -31,13 +31,15 @@ export function createApp(): Express {
     .map((s) => s.trim())
     .filter(Boolean)
 
+  console.log('CORS allowlist:', ALLOWLIST)
+
   // Se ALLOWLIST estiver vazio, permite todas as origens (útil para desenvolvimento local)
   app.use(
     cors({
       origin: (origin, cb) => {
         if (!origin) return cb(null, true)
         if (ALLOWLIST.length === 0 || ALLOWLIST.includes(origin)) return cb(null, true)
-        return cb(new Error('CORS não permitido'), false)
+        return cb(new Error(`CORS não permitido: ${origin}`), false)
       },
       credentials: true,
     }),
