@@ -65,9 +65,6 @@ const listQuery = z.object({
  *               name:
  *                 type: string
  *                 example: "Maria Souza"
- *               phone:
- *                 type: string
- *                 example: "+55 11987654321"
  *     responses:
  *       201:
  *         description: Usuário registrado com sucesso
