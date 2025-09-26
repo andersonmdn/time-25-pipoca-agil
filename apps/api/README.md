@@ -123,6 +123,18 @@ Este projeto faz parte de um **monorepo** gerenciado com [pnpm workspaces](https
 | `pnpm --filter @chargemap/api prisma:studio`         | Abre o Prisma Studio para visualização/edição dos dados.                                          |
 | `pnpm --filter @chargemap/api prestart`              | Compila as validações do pacote `@chargemap/validations` e gera o client Prisma antes de iniciar. |
 | `pnpm --filter @chargemap/api postinstall`           | Compila as validações e gera o client Prisma após instalar dependências.                          |
+| `pnpm --filter @chargemap/api test`                  | Executa todos os testes automatizados com Vitest.                                                 |
+| `pnpm --filter @chargemap/api test:watch`            | Executa os testes em modo watch (Vitest).                                                         |
+| `pnpm --filter @chargemap/api test:run`              | Executa os testes uma vez (Vitest).                                                               |
+| `pnpm --filter @chargemap/api test:ui`               | Abre a interface gráfica do Vitest para execução dos testes.                                      |
+| `pnpm --filter @chargemap/api coverage`              | Gera o relatório de cobertura dos testes (Vitest).                                                |
+
+---
+
+## Testes Automatizados
+
+A API utiliza o **Vitest** para testes automatizados. Os testes podem ser executados com os comandos listados acima.  
+O Vitest oferece execução rápida, modo watch, interface gráfica (`test:ui`) e geração de relatórios de cobertura.
 
 ---
 
