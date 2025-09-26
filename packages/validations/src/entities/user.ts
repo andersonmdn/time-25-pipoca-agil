@@ -24,3 +24,7 @@ export const userResponseSchema = userSchema.extend({
   updatedAt: z.date(),
 })
 export type UserResponse = z.infer<typeof userResponseSchema>
+
+// Schema público sem o campo senha
+export const userResponseSchemaPublic = userResponseSchema.omit({ password: true })
+export type UserResponsePublic = z.infer<typeof userResponseSchemaPublic>

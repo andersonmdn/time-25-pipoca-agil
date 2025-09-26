@@ -53,7 +53,7 @@ const router = Router()
  */
 router.post('/login', async (req, res) => {
   const body = authSchema.safeParse(req.body)
-  if (!body.success) return res.status(400).json({ error: z.treeifyError(body.error) })
+  if (!body.success) return res.status(400).json({ error: z.prettifyError(body.error) })
   const { email, password } = body.data
 
   const user = await findUserByEmail(email)
@@ -62,7 +62,7 @@ router.post('/login', async (req, res) => {
   const ok = await verifyPassword(user.password, password)
   if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' })
 
-  const payload = { id: String(user.id), email: user.email }
+  const payload = { id: String(user.id), email: user.email, role: user.role }
   res.json({
     user: { id: user.id, email: user.email, name: user.name },
     accessToken: signAccessToken(payload),
@@ -133,9 +133,14 @@ router.post('/login', async (req, res) => {
 
 router.post('/refresh', async (req, res) => {
   const token = (req.body?.refreshToken ?? req.headers['x-refresh-token']) as string | undefined
-  if (!token) return res.status(400).json({ error: 'Token de atualização ausente' })
+  logger.info({ token: !!token }, 'Recebida requisição de refresh token')
+  if (!token) {
+    logger.warn('Token de atualização ausente na requisição')
+    return res.status(400).json({ error: 'Token de atualização ausente' })
+  }
   try {
     const payload = verifyRefresh(token)
+    logger.info({ userId: payload.id, email: payload.email }, 'Refresh token válido, gerando novo accessToken')
     const accessToken = signAccessToken(payload)
     res.json({ accessToken })
   } catch (e) {

@@ -77,7 +77,14 @@ export function createApp(): Express {
   setupSwagger(app)
 
   // Erros finais
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
+      logger.warn(err, 'JSON malformado')
+      return res.status(400).json({ error: 'JSON malformado' })
+    }
+    return _next(err)
+  })
+
   app.use((err: any, _req: any, res: any, _next: any) => {
     logger.error(err, 'Erro não tratado')
     res.status(500).json({ message: 'Erro interno' })

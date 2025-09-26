@@ -1,5 +1,5 @@
+import { StationResponse, stationResponseSchema } from '@chargemap/validations'
 import { PrismaClient } from '@prisma/client'
-import { StationResponse, stationResponseSchema } from 'packages/validations/dist'
 
 const prisma = new PrismaClient()
 
