@@ -44,9 +44,11 @@ Thumbs.db
 # Environment Files
 # =========================
 .env
+.env.test
 .env.local
 .env.*.local
 !.env.example   # Mantém o exemplo versionado
+!.env.test.example      # Mantém o .env.test.example versionado para testes
 
 # =========================
 # IDE Files
@@ -91,3 +93,6 @@ apps/api/prisma/migrations/migration_lock.toml
 # Se quiser garantir que yarn/npm não entrem:
 # package-lock.json
 # yarn.lock
+
+# Temporário - Vamos priorizar Web e Api
+apps/web
