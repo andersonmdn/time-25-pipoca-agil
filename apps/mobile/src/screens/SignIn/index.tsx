@@ -119,7 +119,7 @@ export default function SignIn() {
               disabled={loading}
               testID="button-google-sign-in"
             >
-              <Image source={require('../../assets/google.png')} style={{ width: 20, height: 20, marginRight: 8 }} resizeMode="contain" />
+              <Image source={require('../../../assets/google.png')} style={{ width: 20, height: 20, marginRight: 8 }} resizeMode="contain" />
               Entrar com Google
             </Button>
           </YStack>

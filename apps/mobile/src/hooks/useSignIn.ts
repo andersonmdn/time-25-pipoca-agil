@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
-// import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
+import { useMemo, useState } from 'react'
+import { login } from '../services/auth.service'
 
 export function useSignIn() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('novo.usuario@example.com')
+  const [password, setPassword] = useState('SenhaSegura123!')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,24 +25,10 @@ export function useSignIn() {
     }
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3000/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        if (data?.error == 'Credenciais inválidas') {
-          setError('Por favor, verifique seu e-mail e senha.')
-        } else {
-          setError(`Não foi possível entrar. Tente novamente. (${data?.error})`)
-        }
-        return
-      }
-      // await AsyncStorage.setItem('accessToken', data.accessToken)
+      await login(email, password)
       // router.push('/alguma-rota')
     } catch (e: any) {
-      setError(`Não foi possível entrar. Tente novamente. (${e?.message})`)
+      setError(e.message || 'Erro ao tentar fazer login.')
     } finally {
       setLoading(false)
     }

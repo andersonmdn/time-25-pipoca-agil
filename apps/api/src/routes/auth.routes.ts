@@ -2,6 +2,7 @@ import { authSchema } from '@chargemap/validations'
 import { Router } from 'express'
 import z from 'zod'
 import { signAccessToken, signRefreshToken, verifyRefresh } from '../auth/jwt'
+import { requireAuth } from '../auth/middleware'
 import { logger } from '../logger'
 import { findUserByEmail, verifyPassword } from '../services/user.service'
 
@@ -147,6 +148,23 @@ router.post('/refresh', async (req, res) => {
     logger.error({ e }, 'Erro ao renovar token:')
     res.status(401).json({ error: 'Refresh token inválido ou expirado' })
   }
+})
+
+/**
+ * @swagger
+ * /logout:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Logout do usuário
+ *     description: Invalida o token do lado do cliente (stateless). Apenas retorna 200 OK.
+ *     responses:
+ *       200:
+ *         description: Logout realizado com sucesso.
+ */
+router.post('/logout', requireAuth, (req, res) => {
+  // Stateless JWT: apenas retorna sucesso, o cliente deve apagar os tokens localmente.
+  res.status(200).json({ message: 'Logout realizado com sucesso' })
 })
 
 export default router

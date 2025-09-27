@@ -2,7 +2,7 @@
 
 import request from 'supertest'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { API_URL, checkApiUrl, dumpOnFail, newEmail } from './utils'
+import { API_URL, checkApiUrl, createUserAndLogin, dumpOnFail, newEmail } from './utils'
 
 // async function resolveLoginPath(): Promise<'/login'> {
 //   if (!API_URL) throw new Error('API_URL indefinido.')
@@ -182,6 +182,16 @@ describe('Auth Routes (integração real)', () => {
       expect(res.status).toBe(401)
       expect(res.body).toHaveProperty('error')
       expect(res.body.error).toBe('Refresh token inválido ou expirado')
+    })
+  })
+
+  describe('POST /logout', () => {
+    it('Realiza logout com accessToken válido (200)', async () => {
+      const { accessToken } = await createUserAndLogin()
+      const res = await request(API_URL!).post('/logout').set('Authorization', `Bearer ${accessToken}`)
+      expect(res.status).toBe(200)
+      expect(res.body).toHaveProperty('message')
+      expect(res.body.message).toBe('Logout realizado com sucesso')
     })
   })
 })
