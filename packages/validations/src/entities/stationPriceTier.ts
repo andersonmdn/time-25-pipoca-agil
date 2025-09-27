@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { idInt, optionalDecimal2, optionalTrim, requireAtLeastOneField } from '../shared/helpers'
+import { idInt, optionalDecimal2, optionalTrimSchema, requireAtLeastOneField } from '../shared/helpers'
 
 export const stationPriceTierSchema = z
   .object({
     stationId: idInt,
-    name: optionalTrim,
+    name: optionalTrimSchema,
     pricePerKWh: optionalDecimal2,
     pricePerMinute: optionalDecimal2,
     sessionFee: optionalDecimal2,

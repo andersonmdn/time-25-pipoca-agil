@@ -1,146 +1,153 @@
-import { authSchema } from '@chargemap/validations'
-import { Router } from 'express'
+// src/routes/auth.routes.ts
+import {
+  Login,
+  Refresh,
+  schemaLoginBody,
+  schemaLoginResponse,
+  schemaRefreshBody,
+  schemaUserCreateBody,
+  schemaUserCreateResponse,
+  UserCreateBody,
+} from '@chargemap/validations'
+import { Prisma } from '@prisma/client'
+import { FastifyPluginAsync } from 'fastify'
 import z from 'zod'
-import { signAccessToken, signRefreshToken } from '../auth/jwt'
-import { findUserByEmail, verifyPassword } from '../services/user.service'
+import { signAccessToken, signRefreshToken, verifyRefresh } from '../auth/jwt'
+import { createUser, findUserByEmail, verifyPassword } from '../services/user.service'
 
-const router = Router()
+const errorSchema = z.object({ error: z.string() })
 
-/**
- * @swagger
- * components:
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- */
-
-/**
- * @swagger
- * /login:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Fazer login
- *     description: Autentica o usuário com email e senha e retorna tokens JWT.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: "novo.usuario@example.com"
- *               password:
- *                 type: string
- *                 format: password
- *                 example: "SenhaSegura123!"
- *     responses:
- *       200:
- *         description: Login bem-sucedido
- *       400:
- *         description: Erro de validação
- *       401:
- *         description: Credenciais inválidas
- */
-router.post('/login', async (req, res) => {
-  const body = authSchema.safeParse(req.body)
-  if (!body.success) return res.status(400).json({ error: z.treeifyError(body.error) })
-  const { email, password } = body.data
-
-  const user = await findUserByEmail(email)
-  if (!user) return res.status(401).json({ error: 'Credenciais inválidas' })
-
-  const ok = await verifyPassword(user.password, password)
-  if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' })
-
-  const payload = { id: String(user.id), email: user.email }
-  res.json({
-    user: { id: user.id, email: user.email, name: user.name },
-    accessToken: signAccessToken(payload),
-    refreshToken: signRefreshToken(payload),
-  })
+const refreshResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
 })
 
-/**
- * @swagger
- * /refresh:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Renovar token de acesso
- *     description: Gera um novo accessToken a partir de um refreshToken válido.
- *       O refreshToken pode ser enviado no corpo da requisição ou no header `x-refresh-token`.
- *     parameters:
- *       - in: header
- *         name: x-refresh-token
- *         required: false
- *         schema:
- *           type: string
- *         description: Refresh token JWT.
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               refreshToken:
- *                 type: string
- *                 description: Refresh token JWT.
- *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *     responses:
- *       200:
- *         description: Novo token de acesso gerado com sucesso.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 accessToken:
- *                   type: string
- *                   description: Novo token JWT de acesso.
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *       400:
- *         description: Token de atualização ausente.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Token de atualização ausente"
- *       401:
- *         description: Refresh token inválido ou expirado.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Refresh token inválido ou expirado"
- */
+const authRoutes: FastifyPluginAsync = async (app) => {
+  // Rate limit específico da rota (opcional)
+  // app.register(rateLimit, { max: 120, timeWindow: '1 minute' })
 
-router.post('/refresh', async (req, res) => {
-  const token = (req.body?.refreshToken ?? req.headers['x-refresh-token']) as string | undefined
-  if (!token) return res.status(400).json({ error: 'Token de atualização ausente' })
-  try {
-    const { verifyRefresh } = await import('../auth/jwt')
-    const payload = verifyRefresh(token)
-    const accessToken = (await import('../auth/jwt')).signAccessToken(payload)
-    res.json({ accessToken })
-  } catch {
-    res.status(401).json({ error: 'Refresh token inválido ou expirado' })
-  }
-})
+  app.post(
+    '/register',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Registrar novo usuário',
+        description: 'Cria um novo usuário e retorna tokens de autenticação.',
+        body: schemaUserCreateBody,
+        response: {
+          201: schemaUserCreateResponse,
+          400: errorSchema,
+          409: errorSchema,
+          500: errorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { email, password, name, phone } = request.body as UserCreateBody
+      try {
+        const user = await createUser({ email, password, name, phone })
+        const payload = { id: String(user.id), email: user.email, role: 'user' as const }
+        return reply.code(201).send({
+          user: { id: user.id, email: user.email, name: user.name },
+          accessToken: signAccessToken(payload),
+          refreshToken: signRefreshToken(payload),
+        })
+      } catch (err: any) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          return reply.code(409).send({ error: 'Email já registrado' })
+        }
+        return reply.code(500).send({ error: 'Erro ao registrar' })
+      }
+    },
+  )
 
-export default router
+  app.post(
+    '/login',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Login com email e senha',
+        description: 'Valida credenciais e retorna par de tokens JWT.',
+        body: schemaLoginBody,
+        response: {
+          200: schemaLoginResponse,
+          400: errorSchema, // erro de validação
+          401: errorSchema, // credenciais inválidas
+          500: errorSchema, // erro interno
+        },
+      },
+    },
+    async (request, reply) => {
+      const { email, password } = request.body as Login
+
+      const user = await findUserByEmail(email)
+      if (!user) return reply.code(401).send({ error: 'Credenciais inválidas' })
+
+      const ok = await verifyPassword(user.password, password)
+      if (!ok) return reply.code(401).send({ error: 'Credenciais inválidas' })
+
+      const payload = { id: String(user.id), email: user.email, role: (user.role ?? 'user') as 'user' | 'admin' }
+      return reply.send({
+        user: { id: user.id, email: user.email, name: user.name },
+        accessToken: signAccessToken(payload),
+        refreshToken: signRefreshToken(payload),
+      })
+    },
+  )
+
+  app.post(
+    '/refresh',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Renovar tokens',
+        description: 'Recebe um refresh token válido e retorna um novo par (accessToken, refreshToken). Não requer Bearer no header.',
+        body: schemaRefreshBody,
+        response: {
+          200: refreshResponseSchema,
+          400: errorSchema, // validação/ausência
+          401: errorSchema, // refresh inválido/expirado
+          500: errorSchema, // erro interno
+        },
+      },
+    },
+    async (request, reply) => {
+      const { refreshToken } = request.body as Refresh
+      try {
+        // 1) validar/verificar refresh token e extrair payload mínimo
+        const payload = verifyRefresh(refreshToken)
+
+        // 2) opcional: checar se token está revogado em storage/blacklist/versão do token
+        // if (await isRevoked(refreshToken)) return reply.code(401).send({ error: 'Refresh token inválido' })
+
+        // 3) gerar novo par de tokens (rotacionar refresh é uma boa prática)
+        const newAccess = signAccessToken({ id: payload.id, email: payload.email, role: payload.role })
+        const newRefresh = signRefreshToken({ id: payload.id, email: payload.email, role: payload.role })
+
+        return reply.send({ accessToken: newAccess, refreshToken: newRefresh })
+      } catch {
+        return reply.code(401).send({ error: 'Refresh token inválido ou expirado' })
+      }
+    },
+  )
+
+  app.post(
+    '/logout',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Logout',
+        description: 'Efetua logout do usuário. (Stub: não implementa blacklist de tokens (Ainda))',
+        response: {
+          200: z.object({ ok: z.boolean() }),
+        },
+      },
+    },
+    async (_request, reply) => {
+      // Stub: não faz nada, apenas responde 200 OK
+      return reply.send({ ok: true })
+    },
+  )
+}
+
+export default authRoutes

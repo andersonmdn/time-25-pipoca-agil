@@ -9,15 +9,17 @@ export const idInt = z.coerce.number().int().positive() // ID inteiro positivo
 export const optionalIdInt = idInt.optional() // ID inteiro positivo opcional
 
 export const nonEmptyTrim = z.string().trim().min(1) // string não vazia
-export const optionalTrim = z.string().trim().optional() // string não vazia opcional
+export const nameSchema = z.string().trim().min(2).max(100) // nome válido
+export const optionalTrimSchema = z.string().trim().optional().nullable() // string opcional (não obrigatório, aceita null)
 
 export const passwordSchema = z.string().min(6) // senha com no mínimo 6 caracteres
-export const emailSchema = z.string().email() // email válido
+export const emailSchema = z.string().trim().toLowerCase().email() // email válido
 export const phoneSchema = z
   .string()
   .trim()
   .regex(/^[\d\s()+\-\.]{8,20}$/, 'telefone inválido')
-  .optional() // telefone inválido opcional
+  .optional()
+  .nullable() // telefone opcional (não obrigatório, aceita null)
 
 export const urlSchema = z.string().url()
 export const urlArrSchema = z.array(urlSchema).max(20).default([])

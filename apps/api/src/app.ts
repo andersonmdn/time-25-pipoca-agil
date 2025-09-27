@@ -1,85 +1,99 @@
-import cors from 'cors'
-import dotenv from 'dotenv'
-import express, { Express } from 'express'
-import rateLimit from 'express-rate-limit'
-import helmet from 'helmet'
-import morgan from 'morgan'
+// apps\api\src\app.ts
+import fastifyCors from '@fastify/cors'
+import fastifyHelmet from '@fastify/helmet'
+import rateLimit from '@fastify/rate-limit'
+import swagger from '@fastify/swagger'
+import swaggerUI from '@fastify/swagger-ui'
+import Fastify from 'fastify'
+import { ZodTypeProvider, jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod'
 import { loadEnv } from './config/env'
-import { logger } from './logger'
+
+// Rotas
+import { ZodError } from 'zod'
 import authRoutes from './routes/auth.routes'
 import userRoutes from './routes/user.routes'
-import { setupSwagger } from './swagger'
 
-export function createApp(): Express {
-  // Configurações iniciais (ENV)
-  dotenv.config()
+const pathToString = (path: (string | number)[]) => (path.length ? path.join('.') : '(root)')
+
+function formatZod(err: ZodError) {
+  const details = err.issues.map((i) => ({
+    path: pathToString(i.path as (string | number)[]),
+    message: i.message,
+    code: i.code,
+  }))
+  const pretty = details.map((d) => `${d.path}: ${d.message}`).join('\n')
+  return { pretty, details }
+}
+
+export async function createApp() {
   const env = loadEnv()
-  const app = express()
 
-  app.disable('x-powered-by') // Segurança básica (oculta o uso do Express)
-  app.set('trust proxy', 1) // Necessário se estiver atrás de um proxy (ex: Heroku, Vercel, etc.)
+  const app = Fastify({
+    logger: {
+      level: env.LOG_LEVEL,
+      transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss', ignore: 'pid,hostname', singleLine: true } },
+    },
+    trustProxy: true,
+  }).withTypeProvider<ZodTypeProvider>()
 
-  app.use(
-    helmet({
-      crossOriginResourcePolicy: false, // Ajuste para evitar bloqueio de imagens em alguns casos (CORS)
-    }), // Segurança básica (varias proteções HTTP headers)
-  )
+  // Zod compilers
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
 
-  // CORS (ajustado)
-  const ALLOWLIST = (env.CORS_ORIGINS || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+  app.setErrorHandler((err, _req, reply) => {
+    // 1) Erros de validação vindos do Zod (Fastify envolve em FST_ERR_VALIDATION e salva em cause)
+    const zodErr =
+      (err as any)?.cause instanceof ZodError ? ((err as any).cause as ZodError) : err instanceof ZodError ? (err as ZodError) : undefined
 
-  // Se ALLOWLIST estiver vazio, permite todas as origens (útil para desenvolvimento local)
-  app.use(
-    cors({
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true)
-        if (ALLOWLIST.length === 0 || ALLOWLIST.includes(origin)) return cb(null, true)
-        return cb(new Error('CORS não permitido'), false)
+    if (zodErr) {
+      const { pretty, details } = formatZod(zodErr)
+      return reply.code(400).send({
+        error: pretty, // ex.: "email: Invalid email\npassword: String must contain..."
+        details, // array com path/message/code
+      })
+    }
+
+    // 2) Outros erros de validação do Fastify (sem ZodError por trás)
+    if ((err as any).code === 'FST_ERR_VALIDATION' || (err as any).validation) {
+      return reply.code(400).send({ error: err.message || 'Parâmetro inválido' })
+    }
+
+    // 3) JSON Malformado
+    if ((err as any).code === 'FST_ERR_CTP_INVALID_JSON_BODY') {
+      return reply.code(500).send({ error: 'JSON malformado' })
+    }
+
+    // 4) Demais erros
+    return reply.code(500).send({ error: 'Erro interno' })
+  })
+
+  // Middlewares equivalentes
+  // Aplicar Rete Limit globalmente pode ser um problema para APIs públicas. Aplicar nas rotas que interessam.
+  await app.register(fastifyCors, { origin: true })
+  await app.register(fastifyHelmet)
+  await app.register(rateLimit, { global: false })
+
+  // Swagger a partir do Zod
+  await app.register(swagger, {
+    openapi: {
+      info: { title: 'API do Projeto do Time 25', version: '1.0.0', description: 'Documentação da API' },
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        },
       },
-      credentials: true,
-    }),
-  )
-
-  app.use(express.json({ limit: '256kb' })) // Body parser (JSON)
-  app.use(morgan('tiny')) // Logs HTTP (simples)
-
-  // Força HTTPS em produção (ajustado)
-  if (env.NODE_ENV === 'production') {
-    app.use((req, res, next) => {
-      const proto = req.get('x-forwarded-proto')
-      if (proto && proto !== 'https') {
-        return res.status(403).json({ message: 'HTTPS necessário' })
-      }
-      next()
-    })
-  }
-
-  // Rate limits (mantidos)
-  const authLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
+    },
+    transform: jsonSchemaTransform,
   })
 
-  //app.use(['/login', '/refresh', '/register'], authLimiter)
+  await app.register(swaggerUI, { routePrefix: '/api-docs' })
 
-  // Rotas
-  app.use(authRoutes)
-  app.use(userRoutes)
+  // Health check
+  app.get('/health', async () => ({ ok: true }))
 
-  // Swagger (ajustado)
-  setupSwagger(app)
-
-  // Erros finais
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    logger.error(err, 'Erro não tratado')
-    res.status(500).json({ message: 'Erro interno' })
-  })
+  // Rotas (prefixos iguais aos seus)
+  await app.register(authRoutes, { prefix: '/' })
+  await app.register(userRoutes, { prefix: '/' })
 
   return app
 }

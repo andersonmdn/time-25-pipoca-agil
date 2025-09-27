@@ -7,7 +7,7 @@
     "module": "CommonJS",
     "outDir": "dist",
     "rootDir": ".",
-
+    "types": ["node", "vitest"],
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -17,6 +17,6 @@
 
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src"],
+  "include": ["src", "vitest.setup.ts", "**/*.test.ts", "**/*.spec.ts"],
   "exclude": ["node_modules", "dist"]
 }

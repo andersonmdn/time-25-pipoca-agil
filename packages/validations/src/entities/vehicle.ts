@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { PlugType } from '../shared/enums'
-import { idInt, optionalTrim, requireAtLeastOneField } from '../shared/helpers'
+import { idInt, optionalTrimSchema, requireAtLeastOneField } from '../shared/helpers'
 
 export const vehicleSchema = z.object({
   userId: idInt,
-  alias: optionalTrim,
-  brand: optionalTrim,
-  model: optionalTrim,
+  alias: optionalTrimSchema,
+  brand: optionalTrimSchema,
+  model: optionalTrimSchema,
   plug: PlugType,
 })
 
