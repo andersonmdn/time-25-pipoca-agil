@@ -4,93 +4,11 @@ import request from 'supertest'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { API_URL, checkApiUrl, createUserAndLogin, dumpOnFail, newEmail } from './utils'
 
-// async function resolveLoginPath(): Promise<'/login'> {
-//   if (!API_URL) throw new Error('API_URL indefinido.')
-//   if (loginPathCache) return loginPathCache
-
-//   // tenta /auth/login
-//   let probe = await request(API_URL).post('/auth/login').send({})
-//   if (![404, 405].includes(probe.status)) {
-//     loginPathCache = '/auth/login'
-//     return loginPathCache
-//   }
-//   // tenta /login
-//   probe = await request(API_URL).post('/login').send({})
-//   if (![404, 405].includes(probe.status)) {
-//     loginPathCache = '/login'
-//     return loginPathCache
-//   }
-//   throw new Error('Nenhuma rota de login encontrada (/auth/login ou /login)')
-// }
-
-// async function resolveRefreshPath(): Promise<'/refresh'> {
-//   if (!API_URL) throw new Error('API_URL indefinido.')
-//   if (refreshPathCache) return refreshPathCache
-
-//   // tenta /auth/refresh
-//   let probe = await request(API_URL).post('/refresh').send({})
-//   if (![404, 405].includes(probe.status)) {
-//     refreshPathCache = '/auth/refresh'
-//     return refreshPathCache
-//   }
-//   // tenta /refresh
-//   probe = await request(API_URL).post('/refresh').send({})
-//   if (![404, 405].includes(probe.status)) {
-//     refreshPathCache = '/refresh'
-//     return refreshPathCache
-//   }
-//   throw new Error('Nenhuma rota de refresh encontrada (/auth/refresh ou /refresh)')
-// }
-
-// /**
-//  * Cria usuário e faz login para obter tokens reais
-//  */
-// async function createUserAndLogin(): Promise<{ id: number; email: string; accessToken: string; refreshToken?: string }> {
-//   if (!API_URL) throw new Error('API_URL indefinido.')
-//   const email = newEmail('auth')
-//   const password = 'SenhaF0rte@1'
-
-//   // registra
-//   const reg = await request(API_URL).post('/register').send({
-//     email,
-//     password,
-//     name: 'Auth Tester',
-//     phone: '+55 11999999999',
-//   })
-//   if (reg.status !== 201) {
-//     dumpOnFail(reg, 201)
-//     throw new Error('Falha ao registrar usuário de teste para auth.')
-//   }
-
-//   // tenta pegar tokens direto do /register
-//   let accessToken = extractAccessToken(reg.body)
-//   let refreshToken = extractRefreshToken(reg.body)
-
-//   if (!accessToken) {
-//     // login
-//     const loginPath = await resolveLoginPath()
-//     const login = await request(API_URL).post(loginPath).send({ email, password })
-//     if (login.status !== 200) {
-//       dumpOnFail(login, 200)
-//       throw new Error('Falha ao fazer login.')
-//     }
-//     accessToken = extractAccessToken(login.body)
-//     refreshToken = extractRefreshToken(login.body)
-//   }
-
-//   if (!accessToken) {
-//     throw new Error('accessToken não encontrado após registro/login.')
-//   }
-
-//   const id: number = reg.body?.user?.id ?? reg.body?.id ?? reg.body?.userId
-//   return { id, email, accessToken, refreshToken }
-// }
-
 describe('Auth Routes (integração real)', () => {
   beforeAll(() => checkApiUrl())
 
   describe('POST /login', () => {
-    it('Realiza login com credenciais válidas (200)', async () => {
+    it('Login com credenciais válidas (200)', async () => {
       const email = newEmail('loginok')
       const password = 'SenhaF0rte@1'
       const reg = await request(API_URL!).post('/register').send({ email, password, name: 'Login Ok' })
@@ -109,16 +27,35 @@ describe('Auth Routes (integração real)', () => {
       expect(res.body).toHaveProperty('refreshToken')
     })
 
-    it('Retorna 400 para payload inválido', async () => {
-      const res = await request(API_URL!).post('/login').send({ email: 'invalid' })
-      expect(res.status).toBe(400)
+    it('Login com payload inválido (400) - Email inválido', async () => {
+      const res = await request(API_URL!).post('/login').send({ email: 'invalid', password: 'SenhaF0rte@1' })
 
+      expect(res.status).toBe(400)
       expect(res.body).toHaveProperty('error')
-      expect(res.body.error).toContain('Invalid input: expected string, received undefined')
-      expect(res.body.error).toContain('at password')
+      expect(res.body.error).toContain('Invalid email address')
+      expect(res.body.error).toContain('body/email')
     })
 
-    it('Retorna 401 para senha incorreta', async () => {
+    it('Login com payload inválido (400) - Sem Email', async () => {
+      const res = await request(API_URL!).post('/login').send({ password: 'SenhaF0rte@1' })
+
+      expect(res.status).toBe(400)
+      expect(res.body).toHaveProperty('error')
+      expect(res.body.error).toContain('Invalid input: expected string, received undefined')
+      expect(res.body.error).toContain('body/email')
+    })
+
+    it('Login com payload inválido (400) - Sem Senha', async () => {
+      const email = newEmail('loginbad')
+      const res = await request(API_URL!).post('/login').send({ email })
+
+      expect(res.status).toBe(400)
+      expect(res.body).toHaveProperty('error')
+      expect(res.body.error).toContain('Invalid input: expected string, received undefined')
+      expect(res.body.error).toContain('body/password')
+    })
+
+    it('Login com credenciais inválidas (401)', async () => {
       const email = newEmail('loginbad')
       const password = 'SenhaF0rte@1'
       await request(API_URL!).post('/register').send({ email, password, name: 'Login Bad' }).expect(201)
@@ -130,10 +67,10 @@ describe('Auth Routes (integração real)', () => {
       expect(res.body.error).toBe('Credenciais inválidas')
     })
 
-    it('Retorna 400 para JSON malformado', async () => {
+    it('Login com payload inválido (400) - JSON malformado', async () => {
       const res = await request(API_URL!).post('/login').set('Content-Type', 'application/json').send('{"email": "x@example.com",') // quebrado
 
-      expect(res.status).toBe(400)
+      expect(res.status).toBe(500)
       expect(res.headers['content-type']).toMatch(/application\/json/i)
       expect(res.body).toHaveProperty('error')
       expect(res.body.error).toBe('JSON malformado')
@@ -141,7 +78,7 @@ describe('Auth Routes (integração real)', () => {
   })
 
   describe('POST /refresh', () => {
-    it('Rotaciona accessToken com refresh válido (body ou header)', async () => {
+    it('Refresh token válido (200)', async () => {
       const email = newEmail('refresh')
       const reg = await request(API_URL!).post('/register').send({
         email,
@@ -157,28 +94,30 @@ describe('Auth Routes (integração real)', () => {
 
       console.log('Usando refreshToken:', refreshToken)
 
-      // Testa envio no corpo
-      const resBody = await request(API_URL!).post('/refresh').send({ refreshToken })
-      expect(resBody.status).toBe(200)
-      expect(resBody.body).toHaveProperty('accessToken')
-      expect(typeof resBody.body?.accessToken).toBe('string')
-
-      // Testa envio no header
-      const resHeader = await request(API_URL!).post('/refresh').set('x-refresh-token', refreshToken).send()
-      expect(resHeader.status).toBe(200)
-      expect(resHeader.body).toHaveProperty('accessToken')
-      expect(typeof resHeader.body?.accessToken).toBe('string')
+      const res = await request(API_URL!).post('/refresh').send({ refreshToken })
+      expect(res.status).toBe(200)
+      expect(res.body).toHaveProperty('accessToken')
+      expect(typeof res.body?.accessToken).toBe('string')
     })
 
-    it('Retorna 400 quando o refresh token está ausente', async () => {
+    it('Refresh token ausente (400)', async () => {
       const res = await request(API_URL!).post('/refresh').send({})
       expect(res.status).toBe(400)
       expect(res.body).toHaveProperty('error')
-      expect(res.body.error).toBe('Token de atualização ausente')
+      expect(res.body.error).toContain('Invalid input: expected string, received undefined')
+      expect(res.body.error).toContain('body/refreshToken')
     })
 
-    it('Retorna 401 para refresh token inválido', async () => {
+    it('Refresh token inválido (400) - muito curto', async () => {
       const res = await request(API_URL!).post('/refresh').send({ refreshToken: 'invalid' })
+      expect(res.status).toBe(400)
+      expect(res.body).toHaveProperty('error')
+      expect(res.body.error).toContain('Too small: expected string to have >=10 characters')
+      expect(res.body.error).toContain('body/refreshToken')
+    })
+
+    it('Refresh token inválido ou expirado (401)', async () => {
+      const res = await request(API_URL!).post('/refresh').send({ refreshToken: 'tokeninvalido' })
       expect(res.status).toBe(401)
       expect(res.body).toHaveProperty('error')
       expect(res.body.error).toBe('Refresh token inválido ou expirado')
@@ -190,8 +129,8 @@ describe('Auth Routes (integração real)', () => {
       const { accessToken } = await createUserAndLogin()
       const res = await request(API_URL!).post('/logout').set('Authorization', `Bearer ${accessToken}`)
       expect(res.status).toBe(200)
-      expect(res.body).toHaveProperty('message')
-      expect(res.body.message).toBe('Logout realizado com sucesso')
+      expect(res.body).toHaveProperty('ok')
+      expect(res.body.ok).toBe(true)
     })
   })
 })

@@ -1,25 +1,23 @@
-import { NextFunction, Request, Response } from 'express'
-import { JwtUser, verifyAccess } from './jwt'
+// apps\api\src\auth\middleware.ts
+import { FastifyReply, FastifyRequest } from 'fastify'
+import { JwtUser, verifyAccess } from '../auth/jwt'
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtUser
-    }
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: JwtUser
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const auth = req.headers.authorization
+export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
+  const auth = request.headers.authorization
   if (!auth?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Cabeçalho de autorização ausente ou inválido' })
+    return reply.code(401).send({ error: 'Cabeçalho de autorização ausente ou inválido' })
   }
   const token = auth.slice(7)
   try {
     const payload = verifyAccess(token)
-    req.user = payload
-    next()
+    request.user = payload
   } catch {
-    return res.status(401).json({ error: 'Token inválido ou expirado' })
+    return reply.code(401).send({ error: 'Token inválido ou expirado' })
   }
 }

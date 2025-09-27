@@ -1,4 +1,4 @@
-import { UserResponse, userResponseSchema } from '@chargemap/validations'
+import { schemaUser, User } from '@chargemap/validations'
 import { PrismaClient } from '@prisma/client'
 import argon2 from 'argon2'
 import z from 'zod'
@@ -6,9 +6,9 @@ import { logger } from '../logger'
 
 const prisma = new PrismaClient()
 
-export async function findUserByEmail(email: string): Promise<UserResponse | null> {
+export async function findUserByEmail(email: string): Promise<User | null> {
   const user = await prisma.user.findUnique({ where: { email } })
-  const result = userResponseSchema.nullable().safeParse(user)
+  const result = schemaUser.nullable().safeParse(user)
 
   if (!result.success) {
     logger.error({ user }, `Dados inconsistentes no banco sendo retornados. \nFunction: findUserByEmail \n${z.prettifyError(result.error)}`)
@@ -24,7 +24,7 @@ export async function createUser(data: {
   name?: string | null
   phone?: string | null
   role?: 'user' | 'admin' | 'partner'
-}): Promise<UserResponse> {
+}): Promise<User> {
   const passwordHash = await argon2.hash(data.password)
   const user = await prisma.user.create({
     data: {
@@ -36,7 +36,7 @@ export async function createUser(data: {
     },
   })
 
-  const result = userResponseSchema.safeParse(user)
+  const result = schemaUser.safeParse(user)
   if (!result.success) {
     logger.error({ user }, `Dados inconsistentes no banco sendo retornados. \nFunction: createUser \n${z.prettifyError(result.error)}`)
     return Promise.reject(new Error('Dados inconsistentes no banco sendo retornados.'))
@@ -49,10 +49,10 @@ export async function verifyPassword(hash: string, plain: string): Promise<boole
   return argon2.verify(hash, plain)
 }
 
-export async function getUsers(): Promise<UserResponse[]> {
+export async function getUsers(): Promise<User[]> {
   const users = await prisma.user.findMany()
 
-  return userResponseSchema.array().parse(users)
+  return users.map((user) => schemaUser.parse(user))
 }
 
 export async function getUsersPaginated({
@@ -65,7 +65,7 @@ export async function getUsersPaginated({
   page: number
   sort: 'createdAt' | 'name' | 'email'
   order: 'asc' | 'desc'
-}): Promise<{ users: UserResponse[]; total: number }> {
+}): Promise<{ users: User[]; total: number }> {
   const skip = (page - 1) * limit
   const [users, total] = await Promise.all([
     prisma.user.findMany({
@@ -76,7 +76,7 @@ export async function getUsersPaginated({
     prisma.user.count(),
   ])
   return {
-    users: userResponseSchema.array().parse(users),
+    users: users.map((user) => schemaUser.parse(user)),
     total,
   }
 }
@@ -84,7 +84,7 @@ export async function getUsersPaginated({
 export async function updateUser(
   id: number,
   data: { email?: string; password?: string; name?: string | null; phone?: string | null },
-): Promise<UserResponse> {
+): Promise<User> {
   const updateData: any = { ...data }
   if (data.password) {
     updateData.password = await argon2.hash(data.password)
@@ -94,5 +94,5 @@ export async function updateUser(
     data: updateData,
   })
 
-  return userResponseSchema.parse(user)
+  return schemaUser.parse(user)
 }

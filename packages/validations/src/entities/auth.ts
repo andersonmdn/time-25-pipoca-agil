@@ -1,21 +1,17 @@
-import { z } from 'zod'
-import { emailSchema, idInt, nameSchema, passwordSchema } from '../shared/helpers'
+import z from 'zod'
+import { schemaUser } from './user'
 
-export const authSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-})
+export const schemaLoginBody = schemaUser.pick({ email: true, password: true })
 
-export const loginUserSchema = z.object({
-  id: idInt,
-  email: emailSchema,
-  name: nameSchema,
-})
-export type LoginUser = z.infer<typeof loginUserSchema>
-
-export const loginResponseSchema = z.object({
-  user: loginUserSchema,
+export const schemaLoginResponse = z.object({
+  user: schemaUser.pick({ id: true, email: true, name: true }),
   accessToken: z.string(),
   refreshToken: z.string(),
 })
-export type LoginResponse = z.infer<typeof loginResponseSchema>
+
+export const schemaRefreshBody = z.object({
+  refreshToken: z.string().min(10),
+})
+
+export type Login = z.infer<typeof schemaLoginBody>
+export type Refresh = z.infer<typeof schemaRefreshBody>

@@ -9,45 +9,43 @@ import { createUser } from '../../src/services/user.service'
 const API_URL = 'http://localhost:3000'
 
 export default async function () {
-  // const envPath = path.resolve(process.cwd(), '.env.test')
-  // if (fs.existsSync(envPath)) dotenv.config({ path: envPath })
   dotenv.config({ path: '.env.test' })
+
   const env = loadEnv()
-  const app = createApp()
-  const PORT = env.PORT
+  const PORT = Number(env.PORT ?? 3000)
+  const API_URL = `http://localhost:${PORT}`
 
-  app.listen(PORT, () => {
-    logger.info({ port: PORT }, `API rodando em http://localhost:${PORT}`)
-  })
+  // ⚠️ No Windows, evite gerar o client durante o reset (causa EPERM)
+  // Gere o client antes (ex.: no postinstall) e pule o generate aqui:
+  logger.info('Resetando o banco de testes...')
+  execSync('npx prisma migrate reset --force --skip-generate', { stdio: 'inherit' })
 
-  // // roda migrações (ou push)
-  // execSync('npx prisma db push', { stdio: 'inherit' })
+  // Sobe a API **na mesma porta** que os testes vão usar
+  logger.info(`Subindo API para testes em ${API_URL}...`)
+  const app = await createApp()
+  await app.listen({ port: PORT, host: '0.0.0.0' })
+  ;(globalThis as any).__APP__ = app // guarda para teardown opcional
 
-  // Dropa e recria o banco de dados
-  logger.info('Resetando o banco de dados de teste...')
-  execSync(`npx prisma migrate reset --force --skip-seed`, { stdio: 'inherit' })
-  logger.info('Banco de dados de teste resetado.')
-
-  // 1) Garante um usuário fixo de teste
+  // Cria um usuário comum de teste via service (evita flutuação de rota)
   logger.info('Criando usuário de teste...')
-  const res = await request(API_URL).post('/register').send({
-    email: 'Vitest@vitest.com',
+  const testUser = await createUser({
+    email: 'tester@vitest.com',
     password: 'Senha123@',
-    name: 'Vitest User',
+    name: 'Tester',
   })
 
-  if (res.status !== 201) {
-    throw new Error(`Falha ao criar usuário de teste: ${res.status} ${res.text}`)
+  // Faz login para obter tokens (testa a rota real /login)
+  logger.info('Logando usuário de teste...')
+  const res = await request(API_URL).post('/login').send({
+    email: testUser.email,
+    password: 'Senha123@',
+  })
+
+  if (res.status !== 200) {
+    throw new Error(`Falha no login do usuário de teste: ${res.status} ${res.text}`)
   }
 
-  logger.info('Salvando variáveis de ambiente para testes...')
-  process.env.ACCESS_TOKEN = res.body.accessToken
-  process.env.TEST_USER_EMAIL = String(res.body.user.email)
-  process.env.TEST_USER_PASSWORD = String(res.body.user.password)
-  process.env.TEST_USER_ID = String(res.body.user.id)
-  process.env.API_URL = API_URL
-
-  // 2) Garante um Usuário Admin fixo de teste
+  // Admin fixo (se você precisar em vários testes)
   logger.info('Criando usuário Admin de teste...')
   const adminUser = await createUser({
     email: 'Admin@vitest.com',
@@ -56,24 +54,24 @@ export default async function () {
     role: 'admin',
   })
 
-  if (!adminUser) {
-    console.log('Falha ao criar usuário Admin de teste')
-    console.log(adminUser)
-    throw new Error('Falha ao criar usuário Admin de teste')
-  }
-
   const resAdmin = await request(API_URL).post('/login').send({
-    email: 'Admin@vitest.com',
+    email: adminUser.email,
     password: 'Senha123@',
   })
 
   if (resAdmin.status !== 200) {
-    throw new Error(`Falha ao logar usuário Admin de teste: ${resAdmin.status} ${resAdmin.text}`)
+    throw new Error(`Falha ao logar Admin: ${resAdmin.status} ${resAdmin.text}`)
   }
 
-  logger.info('Salvando variáveis de ambiente do Admin para testes...')
+  // Exporta para os testes
+  process.env.API_URL = API_URL
+  process.env.TEST_USER_EMAIL = String(testUser.email)
+  process.env.TEST_USER_PASSWORD = 'Senha123@'
+  process.env.TEST_USER_ID = String(testUser.id)
+  process.env.ACCESS_TOKEN = res.body.accessToken
+
   process.env.ADMIN_USER_EMAIL = String(adminUser.email)
-  process.env.ADMIN_USER_PASSWORD = String(adminUser.password)
+  process.env.ADMIN_USER_PASSWORD = 'Senha123@'
   process.env.ADMIN_USER_ID = String(adminUser.id)
   process.env.ADMIN_ACCESS_TOKEN = resAdmin.body.accessToken
   process.env.ADMIN_REFRESH_TOKEN = resAdmin.body.refreshToken

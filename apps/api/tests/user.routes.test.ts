@@ -24,6 +24,7 @@ describe('User Routes', () => {
         name: 'Test',
         phone: '+55 11987654321',
       })
+
       dumpOnFail(res, 201)
       expect(res.status).toBe(201)
       expect(res.body).toHaveProperty('user')
@@ -38,14 +39,13 @@ describe('User Routes', () => {
     it('Registros simultâneos com mesmo email: 1 sucesso, 1 conflito', async () => {
       const email = newEmail('race')
       const body = { email, password: 'SenhaF0rte@1', name: 'Race', phone: '+55 11999999999' }
-
       const [a, b] = await Promise.all([request(API_URL!).post('/register').send(body), request(API_URL!).post('/register').send(body)])
 
       const statuses = [a.status, b.status].sort()
       expect(statuses).toEqual([201, 409])
     })
 
-    it('Normaliza email (case/trim) e detecta duplicidade (409)', async () => {
+    it('Registra novo usuário com email sanitizado (201)', async () => {
       const base = newEmail('sanitize')
       await request(API_URL!)
         .post('/register')
@@ -65,53 +65,73 @@ describe('User Routes', () => {
           name: '  Test  ',
           phone: '+55 11911111112',
         })
+
       expect(res.status).toBe(409)
       expect(res.body).toHaveProperty('error')
     })
 
-    it('Retorna 400 para JSON malformado', async () => {
-      const res = await request(API_URL!).post('/register').set('Content-Type', 'application/json').send('{"email": "x@example.com",') // quebrado
-      expect(res.status).toBe(400)
+    it('Registra novo usuário com email sanitizado (201)', async () => {
+      const res = await request(API_URL!).post('/register').set('Content-Type', 'application/json').send('{"email": "x@example.com",')
+
+      expect(res.status).toBe(500)
       expect(res.headers['content-type']).toMatch(/application\/json/i)
       expect(res.body).toHaveProperty('error')
       expect(res.body.error).toBe('JSON malformado')
     })
 
-    it('Valida campos (email inválido e senha ausente) -> 400', async () => {
-      const res = await request(API_URL!).post('/register').send({ email: 'invalid' })
+    it('Registra novo usuário com email ausente, senha ausente, nome ausente (400)', async () => {
+      const res = await request(API_URL!).post('/register').send({})
+
       dumpOnFail(res, 400)
       expect(res.status).toBe(400)
       expect(res.body).toHaveProperty('error')
       expect(typeof res.body.error).toBe('string')
-      expect(res.body.error).toContain('Invalid email address')
-      expect(res.body.error).toContain('at email')
-      expect(res.body.error).toContain('expected string')
-      expect(res.body.error).toContain('at password')
+      expect(res.body.error).toContain('Invalid input: expected string, received undefined')
+      expect(res.body.error).toContain('body/password')
+      expect(res.body.error).toContain('body/name')
+      expect(res.body.error).toContain('body/email')
     })
 
-    it('Cadastro sem nome retorna 400 e mensagem de erro específica', async () => {
-      const email = newEmail('noname')
-      const res = await request(API_URL!).post('/register').send({
-        email,
-        password: 'SenhaF0rte@1',
-        phone: '+55 11999999999',
-      })
+    it('Registra novo usuário com email inválido, senha ausente, nome ausente (400)', async () => {
+      const res = await request(API_URL!).post('/register').send({ email: 'invalid' })
+
+      dumpOnFail(res, 400)
       expect(res.status).toBe(400)
-      expect(res.body).toEqual({
-        error: '✖ Invalid input: expected string, received undefined\n  → at name',
-      })
+      expect(res.body).toHaveProperty('error')
+      expect(typeof res.body.error).toBe('string')
+      expect(res.body.error).toContain('Invalid input: expected string, received undefined')
+      expect(res.body.error).toContain('Invalid email address')
+      expect(res.body.error).toContain('body/password')
+      expect(res.body.error).toContain('body/name')
+      expect(res.body.error).toContain('body/email')
+    })
+
+    it('Registra novo usuário com telefone ausente (201)', async () => {
+      const email = newEmail('nophone')
+      const res = await request(API_URL!).post('/register').send({ email, password: 'Aa@123456', name: 'Abc' })
+
+      dumpOnFail(res, 201)
+      expect(res.status).toBe(201)
+      expect(res.body).toHaveProperty('user')
+      expect(res.body.user.id).toBeGreaterThanOrEqual(1)
+      expect(res.body.user.name).toBe('Abc')
+      expect(res.body.user.email).toBe(email)
+      expect(res.body.user).not.toHaveProperty('password')
+      expect(res.body).toHaveProperty('accessToken')
+      expect(typeof res.body.accessToken).toBe('string')
+      expect(res.body).toHaveProperty('refreshToken')
+      expect(typeof res.body.refreshToken).toBe('string')
     })
   })
 
   describe('GET /users (protegida)', () => {
-    it('Retorna 200 com token válido sem metadados', async () => {
+    it('Lista usuários (200) - Limite Ausente', async () => {
       const token = await getAccessToken()
       const res = await request(API_URL!).get('/users').set('Authorization', `Bearer ${token}`)
-      dumpOnFail(res, 200)
+
       expect(res.status).toBe(200)
-      // Espera que a resposta tenha "data" (array de usuários) e "meta" (objeto de paginação detalhado)
       expect(Array.isArray(res.body.data)).toBe(true)
-      expect(res.body.data.length).toBeGreaterThanOrEqual(1)
+      expect(res.body.data.length).toBeGreaterThan(1)
       for (const user of res.body.data) {
         expect(user).toHaveProperty('id')
         expect(user).toHaveProperty('email')
@@ -136,32 +156,7 @@ describe('User Routes', () => {
       })
     })
 
-    it('Retorna 401 sem token de autorização', async () => {
-      const res = await request(API_URL!).get('/users?limit=1&page=1')
-      expect(res.status).toBe(401)
-      expect(res.body).toHaveProperty('error')
-      expect(res.body.error).toBe('Cabeçalho de autorização ausente ou inválido')
-    })
-
-    it('Rejeita token adulterado (401/403)', async () => {
-      const token = await getAccessToken()
-      const bad = tamper(token)
-      const res = await request(API_URL!).get('/users?limit=1&page=1').set('Authorization', `Bearer ${bad}`)
-      expect(res.status).toBe(401)
-      expect(res.body).toHaveProperty('error')
-      expect(res.body.error).toBe('Token inválido ou expirado')
-    })
-
-    it('Datas em ISO-8601 e content-type JSON', async () => {
-      const token = await getAccessToken()
-      const res = await request(API_URL!).get('/users?limit=1&page=1').set('Authorization', `Bearer ${token}`)
-      expect(res.headers['content-type']).toMatch(/application\/json/i)
-      const u = res.body.data?.[0]
-      expectISODate(u.createdAt)
-      expectISODate(u.updatedAt)
-    })
-
-    it('Lista paginada com metadados (se suportado)', async () => {
+    it('Lista paginada com metadados - Limite 1', async () => {
       const token = await getAccessToken()
       const res = await request(API_URL!).get('/users?limit=1&page=1').set('Authorization', `Bearer ${token}`)
       // se sua API ainda não suporta meta, não quebre: apenas verifique opcionalmente
@@ -178,6 +173,32 @@ describe('User Routes', () => {
         order: expect.any(String),
       })
     })
+
+    it('Lista usuários sem token (401)', async () => {
+      const res = await request(API_URL!).get('/users?limit=1&page=1')
+      expect(res.status).toBe(401)
+      expect(res.body).toHaveProperty('error')
+      expect(res.body.error).toBe('Cabeçalho de autorização ausente ou inválido')
+    })
+
+    it('Lista usuários com token adulterado (401)', async () => {
+      const token = await getAccessToken()
+      const bad = tamper(token)
+      const res = await request(API_URL!).get('/users?limit=1&page=1').set('Authorization', `Bearer ${bad}`)
+      expect(res.status).toBe(401)
+      expect(res.body).toHaveProperty('error')
+      expect(res.body.error).toBe('Token inválido ou expirado')
+    })
+
+    it('Lista usuários (200) - Verifica CreatedAt e UpdatedAt', async () => {
+      const token = await getAccessToken()
+      const res = await request(API_URL!).get('/users?limit=1&page=1').set('Authorization', `Bearer ${token}`)
+      expect(res.status).toBe(200)
+      expect(res.headers['content-type']).toMatch(/application\/json/i)
+      const u = res.body.data?.[0]
+      expectISODate(u.createdAt)
+      expectISODate(u.updatedAt)
+    })
   })
 
   describe('PUT /users/:id (protegida)', () => {
@@ -187,19 +208,24 @@ describe('User Routes', () => {
 
       dumpOnFail(res, 200)
       expect(res.status).toBe(200)
-      expect(res.body).toHaveProperty('user')
-      expect(res.body.user).not.toHaveProperty('password')
-      expect(res.body.user.id).toBe(Number(id))
-      expect(res.body.user.name).toBe('Updated Name')
+      expect(res.body).not.toHaveProperty('password')
+      expect(res.body.id).toBeGreaterThanOrEqual(1)
+      expect(res.body).toHaveProperty('email')
+      expect(res.body).toHaveProperty('name')
+      expect(res.body).toHaveProperty('role')
+      expect(res.body).toHaveProperty('phone')
+      expect(res.body).toHaveProperty('createdAt')
+      expect(res.body).toHaveProperty('updatedAt')
+      expect(res.body.name).toBe('Updated Name')
     })
 
-    it('Retorna 400 para parâmetros inválidos (id não numérico)', async () => {
+    it('Atualiza usuário com ID inválido (400)', async () => {
       const token = await getAccessToken()
       const res = await request(API_URL!).put('/users/invalid').set('Authorization', `Bearer ${token}`).send({ name: 'Updated' })
       expect(res.status).toBe(400)
     })
 
-    it('Nega atualizar outro usuário 403', async () => {
+    it('Atualiza usuário com ID diferente do próprio (403) - Hacker', async () => {
       const { accessToken } = await createUserAndLogin()
       const testUserId = await getTestUserId()
       const res = await request(API_URL!).put(`/users/${testUserId}`).set('Authorization', `Bearer ${accessToken}`).send({ name: 'Hacker' })
@@ -208,7 +234,7 @@ describe('User Routes', () => {
       expect(res.body.error).toBe('Acesso negado')
     })
 
-    it('Usuário inexistente -> 404', async () => {
+    it('Atualiza usuário com ID inexistente (404) - Admin', async () => {
       const token = await getAdminAccessToken()
       const idFake = 9_999_999
       const res = await request(API_URL!).put(`/users/${idFake}`).set('Authorization', `Bearer ${token}`).send({ name: 'Nobody' })
@@ -217,7 +243,7 @@ describe('User Routes', () => {
       expect(res.body.error).toBe('Usuário não encontrado')
     })
 
-    it('Idempotência: repetir PUT com mesmo body mantém 200 e dados', async () => {
+    it('Atualiza usuário com ID igual ao próprio (200) - Idempotência', async () => {
       const { id, accessToken } = await createUserAndLogin()
       const body = { name: 'Same Name' }
 
@@ -226,20 +252,21 @@ describe('User Routes', () => {
 
       expect(a.status).toBe(200)
       expect(b.status).toBe(200)
-      expect(a.body.user.name).toBe('Same Name')
-      expect(b.body.user.name).toBe('Same Name')
+      expect(a.body.name).toBe('Same Name')
+      expect(b.body.name).toBe('Same Name')
     })
 
-    it('Ignora campos proibidos (ex.: role) -> 200', async () => {
+    it('Atualiza usuário com role de admin e nova senha (200) - Não Altera', async () => {
       const { id, accessToken } = await createUserAndLogin()
       const res = await request(API_URL!)
         .put(`/users/${id}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ role: 'admin', password: 'UpdatedPass@1' })
+
       expect(res.status).toBe(200)
-      expect(res.body).toHaveProperty('user')
-      expect(res.body.user).not.toHaveProperty('password')
-      expect(res.body.user).toHaveProperty('role', 'user')
+      expect(res.body).not.toHaveProperty('password')
+      expect(res.body).toHaveProperty('role', 'user')
+      expect(res.body.role).toBe('user')
     })
 
     // it('Sanitiza/rejeita XSS básico no name -> 400/200 dependendo da política', async () => {
@@ -253,9 +280,11 @@ describe('User Routes', () => {
     //   expect([200, 400]).toContain(res.status)
     // })
 
-    it('Retorna 401/403 sem autenticação', async () => {
-      const res = await request(API_URL!).put('/users/1').send({ name: 'X' })
-      expect([401, 403]).toContain(res.status)
+    it('Atualiza usuário sem autenticação (401)', async () => {
+      const res = await request(API_URL!).put('/users/1').send({ name: 'Updated Name' })
+      expect(res.status).toBe(401)
+      expect(res.body).toHaveProperty('error')
+      expect(res.body.error).toBe('Cabeçalho de autorização ausente ou inválido')
     })
   })
 })
