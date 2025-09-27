@@ -31,9 +31,8 @@ export async function createApp() {
   const app = Fastify({
     logger: {
       level: env.LOG_LEVEL,
+      transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss', ignore: 'pid,hostname', singleLine: true } },
     },
-    //logger: true,
-    //loggerInstance: pinoLogger,
     trustProxy: true,
   }).withTypeProvider<ZodTypeProvider>()
 
@@ -47,7 +46,6 @@ export async function createApp() {
       (err as any)?.cause instanceof ZodError ? ((err as any).cause as ZodError) : err instanceof ZodError ? (err as ZodError) : undefined
 
     if (zodErr) {
-      app.log.error({ err: zodErr }, 'Erro de validação Zod')
       const { pretty, details } = formatZod(zodErr)
       return reply.code(400).send({
         error: pretty, // ex.: "email: Invalid email\npassword: String must contain..."
@@ -57,18 +55,15 @@ export async function createApp() {
 
     // 2) Outros erros de validação do Fastify (sem ZodError por trás)
     if ((err as any).code === 'FST_ERR_VALIDATION' || (err as any).validation) {
-      app.log.error({ err }, 'Erro de validação')
       return reply.code(400).send({ error: err.message || 'Parâmetro inválido' })
     }
 
     // 3) JSON Malformado
     if ((err as any).code === 'FST_ERR_CTP_INVALID_JSON_BODY') {
-      app.log.error({ err }, 'JSON malformado')
       return reply.code(500).send({ error: 'JSON malformado' })
     }
 
     // 4) Demais erros
-    app.log.error({ err }, 'Unhandled error')
     return reply.code(500).send({ error: 'Erro interno' })
   })
 
@@ -99,16 +94,6 @@ export async function createApp() {
   // Rotas (prefixos iguais aos seus)
   await app.register(authRoutes, { prefix: '/' })
   await app.register(userRoutes, { prefix: '/' })
-
-  // Errors
-  app.setErrorHandler((err, _req, reply) => {
-    // JSON malformado (Fastify já trata), mas podemos padronizar:
-    if ((err as any)?.validation) {
-      return reply.code(400).send({ error: 'Parâmetro inválido' })
-    }
-    app.log.error(err, 'Erro não tratado')
-    return reply.code(500).send({ message: 'Erro interno' })
-  })
 
   return app
 }

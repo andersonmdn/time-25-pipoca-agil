@@ -92,8 +92,6 @@ describe('Auth Routes (integração real)', () => {
 
       const refreshToken = reg.body.refreshToken as string
 
-      console.log('Usando refreshToken:', refreshToken)
-
       const res = await request(API_URL!).post('/refresh').send({ refreshToken })
       expect(res.status).toBe(200)
       expect(res.body).toHaveProperty('accessToken')
