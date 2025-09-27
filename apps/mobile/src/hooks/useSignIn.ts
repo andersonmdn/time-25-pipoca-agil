@@ -26,7 +26,7 @@ export function useSignIn() {
     try {
       setLoading(true)
       await login(email, password)
-      // router.push('/alguma-rota')
+      router.push('/home')
     } catch (e: any) {
       setError(e.message || 'Erro ao tentar fazer login.')
     } finally {

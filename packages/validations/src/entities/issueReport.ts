@@ -1,13 +1,6 @@
 import { z } from 'zod'
 import { IssueStatus, IssueType } from '../shared/enums'
-import {
-  idInt,
-  nonEmptyTrim,
-  optionalIdInt,
-  optionalTrim,
-  requireAtLeastOneField,
-  urlArrSchema,
-} from '../shared/helpers'
+import { idInt, nonEmptyTrim, optionalIdInt, optionalTrimSchema, requireAtLeastOneField, urlArrSchema } from '../shared/helpers'
 
 export const issueReportCreateSchema = z.object({
   reporterId: idInt,
@@ -17,7 +10,7 @@ export const issueReportCreateSchema = z.object({
   type: IssueType.default('other'),
   status: IssueStatus.default('open'),
   title: nonEmptyTrim,
-  description: optionalTrim,
+  description: optionalTrimSchema,
   photos: urlArrSchema,
 })
 export type IssueReportCreate = z.infer<typeof issueReportCreateSchema>
@@ -29,7 +22,7 @@ export const issueReportUpdateSchema = z
     type: IssueType.optional(),
     status: IssueStatus.optional(),
     title: nonEmptyTrim.optional(),
-    description: optionalTrim,
+    description: optionalTrimSchema,
     photos: urlArrSchema.optional(),
   })
   .superRefine(requireAtLeastOneField())

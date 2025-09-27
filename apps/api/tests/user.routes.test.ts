@@ -52,7 +52,7 @@ describe('User Routes', () => {
         .send({
           email: base,
           password: 'Aa@123456',
-          name: 'A',
+          name: 'Abc',
           phone: '+55 11911111111',
         })
         .expect(201)
@@ -87,6 +87,19 @@ describe('User Routes', () => {
       expect(res.body.error).toContain('at email')
       expect(res.body.error).toContain('expected string')
       expect(res.body.error).toContain('at password')
+    })
+
+    it('Cadastro sem nome retorna 400 e mensagem de erro específica', async () => {
+      const email = newEmail('noname')
+      const res = await request(API_URL!).post('/register').send({
+        email,
+        password: 'SenhaF0rte@1',
+        phone: '+55 11999999999',
+      })
+      expect(res.status).toBe(400)
+      expect(res.body).toEqual({
+        error: '✖ Invalid input: expected string, received undefined\n  → at name',
+      })
     })
   })
 

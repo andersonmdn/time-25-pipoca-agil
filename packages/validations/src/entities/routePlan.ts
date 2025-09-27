@@ -1,15 +1,9 @@
 import { z } from 'zod'
-import {
-  idInt,
-  latSchema,
-  lngSchema,
-  optionalTrim,
-  requireAtLeastOneField,
-} from '../shared/helpers'
+import { idInt, latSchema, lngSchema, optionalTrimSchema, requireAtLeastOneField } from '../shared/helpers'
 
 export const routePlanSchema = z.object({
   userId: idInt,
-  name: optionalTrim,
+  name: optionalTrimSchema,
   originLat: latSchema,
   originLng: lngSchema,
   destLat: latSchema,

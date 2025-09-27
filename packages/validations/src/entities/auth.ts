@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { emailSchema, idInt, optionalTrim, passwordSchema } from '../shared/helpers'
+import { emailSchema, idInt, nameSchema, passwordSchema } from '../shared/helpers'
 
 export const authSchema = z.object({
   email: emailSchema,
@@ -9,7 +9,7 @@ export const authSchema = z.object({
 export const loginUserSchema = z.object({
   id: idInt,
   email: emailSchema,
-  name: optionalTrim,
+  name: nameSchema,
 })
 export type LoginUser = z.infer<typeof loginUserSchema>
 

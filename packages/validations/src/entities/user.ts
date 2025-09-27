@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { UserRole } from '../shared/enums'
-import { emailSchema, idInt, optionalTrim, passwordSchema, phoneSchema, requireAtLeastOneField } from '../shared/helpers'
+import { emailSchema, idInt, nameSchema, passwordSchema, phoneSchema, requireAtLeastOneField } from '../shared/helpers'
 
 export const userIdParamSchema = z.object({ id: idInt })
 
 export const userSchema = z.object({
   email: emailSchema,
-  name: optionalTrim,
+  name: nameSchema,
   role: UserRole.default('user'),
   phone: phoneSchema,
   password: passwordSchema,

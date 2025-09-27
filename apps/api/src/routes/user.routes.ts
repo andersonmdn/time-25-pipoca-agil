@@ -102,7 +102,7 @@ const listQuery = z.object({
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "O campo email é obrigatório"
+ *                   example: "✖ Invalid input: expected string, received undefined\n  → at email"
  *       409:
  *         description: Email já registrado
  *         content:
@@ -318,7 +318,7 @@ router.get('/users', requireAuth, async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "O campo email é obrigatório"
+ *                   example: "✖ Invalid input: expected string, received undefined\n  → at email"
  *       401:
  *         description: Token ausente, inválido ou expirado
  *         content:
