@@ -34,7 +34,6 @@ export default function SignIn() {
               E-mail
             </Paragraph>
             <Input
-              flex={1}
               size="$4"
               placeholder="E-mail"
               keyboardType="email-address"
@@ -46,7 +45,7 @@ export default function SignIn() {
             <Paragraph size="$2" color="$color" mb={-8}>
               Senha
             </Paragraph>
-            <Input flex={1} size="$4" placeholder="Senha" secureTextEntry value={password} onChangeText={setPassword} testID="input-password" />
+            <Input size="$4" placeholder="Senha" secureTextEntry value={password} onChangeText={setPassword} testID="input-password" />
 
             {/* Exibe mensagem de erro, se houver */}
             {error ? (

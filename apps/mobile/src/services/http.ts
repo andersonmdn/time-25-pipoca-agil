@@ -1,11 +1,16 @@
 // src/api/http.ts
 import axios from 'axios'
+import { Platform } from 'react-native'
 import { getTokens } from './tokenStorage'
 
 const BASE_URL = 'http://localhost:3000'
 
 export const http = axios.create({
-  baseURL: BASE_URL,
+  baseURL: Platform.select({
+    android: 'http://10.0.2.2:3000',
+    ios: 'http://localhost:3000',
+    default: 'http://localhost:3000',
+  }),
   timeout: 15000,
 })
 

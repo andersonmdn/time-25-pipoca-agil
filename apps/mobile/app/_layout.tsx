@@ -31,7 +31,10 @@ export default function RootLayout() {
         <SafeAreaView style={{ flex: 1, backgroundColor: '#282736' }} edges={['top', 'bottom']}>
           <TamaguiProvider config={config}>
             <Theme name={theme}>
-              <Stack screenOptions={{ headerShown: false }}></Stack>
+              <Stack initialRouteName="(public)" screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(public)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
               <StatusBar style="dark" />
             </Theme>
           </TamaguiProvider>
