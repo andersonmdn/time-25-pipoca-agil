@@ -1,11 +1,21 @@
 # Banco de Dados — Visão Geral (Prisma + PostgreSQL)
 
-Este documento resume o **modelo de dados** do projeto. O ORM utilizado é **Prisma** e o banco é **PostgreSQL**.
-
 ## Stack & Configuração
 
-- **ORM:** Prisma (`generator client = prisma-client-js`)
+- **Linguagem:** TypeScript
+- **Framework HTTP:** [Fastify](https://fastify.dev/) (`fastify`, `@fastify/cors`, `@fastify/helmet`, `@fastify/jwt`, `@fastify/rate-limit`, `@fastify/swagger`, `@fastify/swagger-ui`)
+- **Validação:** [Zod](https://zod.dev/) (`zod`, `fastify-type-provider-zod`, `@chargemap/validations`)
+- **ORM:** Prisma (`@prisma/client`, `prisma`)
 - **Banco:** PostgreSQL (`datasource db`)
+- **Hash de senha:** [argon2](https://github.com/ranisalt/node-argon2)
+- **JWT:** [jsonwebtoken](https://github.com/auth0/node-jsonwebtoken)
+- **Logger:** [Pino](https://getpino.io/) (`pino`, `pino-pretty`)
+- **Variáveis de ambiente:** [dotenv](https://github.com/motdotla/dotenv)
+- **Testes:** [Vitest](https://vitest.dev/), [Supertest](https://github.com/ladjs/supertest)
+- **Build:** [TypeScript](https://www.typescriptlang.org/), [tsx](https://github.com/esbuild-kit/tsx)
+- **Monorepo:** [pnpm workspaces](https://pnpm.io/workspaces)
+- **Outros:** [yaml](https://eemeli.org/yaml/), [rimraf](https://github.com/isaacs/rimraf)
+
 - **Conexão:** variável de ambiente `DATABASE_URL`
 - **Moeda padrão:** `BRL` em preços de estação
 
